@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 # allows access to environment variables with the name 
-project (OpenGLFramework)
+project (OpenGL_Framework)
 
 #set the build type if its not set
 if(NOT CMAKE_BUILD_TYPE)
@@ -39,8 +39,10 @@ add_subdirectory(external/glfw-3.1.1)
 include_directories(external/glfw-3.1.1/include)
 
 # output executables
-add_executable(test source/main.cpp)
-target_link_libraries(test glfw ${GLFW_LIBRARIES} glbinding)
+file(GLOB FRAMEWORK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
+add_executable(OpenGLFramework ${FRAMEWORK_SOURCES})
+target_include_directories(OpenGLFramework PRIVATE include)
+target_link_libraries(OpenGLFramework glfw ${GLFW_LIBRARIES} glbinding)
 
 # set build type dependent flags
 if(UNIX)
@@ -78,4 +80,4 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 # installation rules, copy over binaries to bin
-install(TARGETS test DESTINATION bin)
+install(TARGETS OpenGLFramework DESTINATION bin)
