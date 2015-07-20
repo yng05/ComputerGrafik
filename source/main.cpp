@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <glm/vec3.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "glm/gtc/type_ptr.hpp"
 
 #include <stdlib.h>
@@ -15,10 +16,18 @@
 
 using namespace gl;
 
-// width / height
-float ratio = 0.0f;
-
+// the rendering window
+GLFWwindow* window;
+// the main shader program
 GLuint simple_program = 0;
+// variables for fps computation
+double last_second_time = 0;
+unsigned frames_per_second = 0;
+// camera matrices
+glm::mat4 camera_projection;
+glm::mat4 camera_view;
+// model matrices
+glm::mat4 model_matrix;
 
 void reload_shader_programs() {
   try {
@@ -43,8 +52,25 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 }
 
 void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
-    ratio = width / (float) height;
     glViewport(0, 0, width, height);
+    // use smaller dimension as reference
+    float smaller = width < height ? width : height;
+    camera_projection = glm::ortho(-width / smaller, width / smaller, -height / smaller, height / smaller, 1.0f, -1.0f);
+    camera_view = glm::mat4{};
+}
+
+void show_fps() {
+  ++frames_per_second;
+  double current_time = glfwGetTime();
+  if(current_time - last_second_time >= 1.0) {
+    std::string title{"OpenGL Framework - "};
+    title += std::to_string(frames_per_second) + " fps";
+
+    glfwSetWindowTitle(window, title.c_str());
+    frames_per_second = 0;
+    last_second_time = current_time;
+  }
+
 }
 
 void render(GLFWwindow* window) {
@@ -64,12 +90,12 @@ void render(GLFWwindow* window) {
   };  
 
   glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(-ratio, ratio, -1.f, 1.f, 1.f, -1.f);
+  glLoadMatrixf(glm::value_ptr(camera_projection));
+
   glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-  glRotatef((float) glfwGetTime() * 50.f, 0.f, 0.f, 1.f);
-  
+  model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 0.0f, 1.0f});
+  glLoadMatrixf(glm::value_ptr(model_matrix));
+
   glBegin(GL_TRIANGLES);
 
   for(unsigned i = 0; i < 3; ++i) {
@@ -82,7 +108,6 @@ void render(GLFWwindow* window) {
 
 int main(void) {
 
-  GLFWwindow* window;
   glfwSetErrorCallback(error_callback);
 
   if(!glfwInit()) {
@@ -95,19 +120,24 @@ int main(void) {
       glfwTerminate();
       exit(EXIT_FAILURE);
   }
+
   glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);
+  // disable vsync
+  glfwSwapInterval(0);
   glfwSetKeyCallback(window, key_callback);
   glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
 
+  // initialize glindings in this context
   glbinding::Binding::initialize();
 
+  // initialize projection
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   framebuffer_resize_callback(window, width, height);
 
   reload_shader_programs();
 
+  // rendering loop
   while(!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -115,8 +145,11 @@ int main(void) {
 
     glfwSwapBuffers(window);
     glfwPollEvents();
+
+    show_fps();
   }
 
+  // free resources
   glfwDestroyWindow(window);
   glfwTerminate();
   exit(EXIT_SUCCESS);
