@@ -9,24 +9,40 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #include <stdlib.h>
-#include <stdio.h>
+#include <iostream>
 
 #include <shader_loader.hpp>
 
 using namespace gl;
 
-float ratio;
+// width / height
+float ratio = 0.0f;
 
-static void error_callback(int error, const char* description) {
-  fputs(description, stderr);
+GLuint simple_program = 0;
+
+void reload_shader_programs() {
+  try {
+    GLuint new_program = shader_loader::program("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
+    simple_program = new_program;
+  }
+  catch(std::exception& e) {
+  }
 }
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+void error_callback(int error, const char* description) {
+  std::cerr << description << std::endl;
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
     glfwSetWindowShouldClose(window, 1);
+  }
+  else if(key == GLFW_KEY_R && action == GLFW_PRESS) {
+    reload_shader_programs();
+  }
 }
 
-static void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
+void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
     ratio = width / (float) height;
     glViewport(0, 0, width, height);
 }
@@ -90,8 +106,7 @@ int main(void) {
   glfwGetFramebufferSize(window, &width, &height);
   framebuffer_resize_callback(window, width, height);
 
-
-  GLuint simple_shader = shader_loader::create("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
+  reload_shader_programs();
 
   while(!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

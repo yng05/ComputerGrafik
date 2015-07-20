@@ -7,9 +7,9 @@
 using namespace gl;
 
 namespace shader_loader {
-  GLuint load(std::string const& file_name, GLenum shaderType)/*Takes a filename and a Shadertype and returns an id of the compiled shader; shaderType could be: GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_GEOMETRIE_SHADER*/;
+  GLuint shader(std::string const& file_name, GLenum shaderType)/*Takes a filename and a Shadertype and returns an id of the compiled shader; shaderType could be: GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_GEOMETRIE_SHADER*/;
   
-  GLuint create(std::string const& vertex_name, std::string const& fragment_name);
+  GLuint program(std::string const& vertex_name, std::string const& fragment_name);
 };
 
 #endif

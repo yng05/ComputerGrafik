@@ -1,87 +1,90 @@
 #include "shader_loader.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <cstring>
 
 namespace shader_loader {
 
-static char* read_file(std::string const& file_name) {
-  char* text = 0;
+std::string read_file(std::string const& name) {
 
-  FILE *file = fopen(file_name.c_str(), "rt");
-
-  if (file != 0) {
-    fseek(file, 0, SEEK_END);
-    int count = ftell(file);
-    rewind(file);
-
-    if (count > 0) {
-      text = (char*)malloc(sizeof(char) * (count + 1));
-      count = fread(text, sizeof(char), count, file);
-      text[count] = '\0';
-    }
-    fclose(file);
+  std::ifstream file_in{name};
+  if(file_in) {
+    std::string contents;
+    file_in.seekg(0, std::ios::end);
+    contents.resize(file_in.tellg());
+    file_in.seekg(0, std::ios::beg);
+    file_in.read(&contents[0], contents.size());
+    file_in.close();
+    return(contents);
   }
   else {
-    std::cerr << "File \'" << file_name << "\' not found" << std::endl;
+    std::cerr << "File \'" << name << "\' not found" << std::endl;
+    
+    throw std::invalid_argument(name);
+  } 
+}
+
+GLuint shader(std::string const& file_name, GLenum shader_type) {
+
+  GLuint shader = 0;
+  shader = glCreateShader(shader_type);
+
+  std::string shader_source{read_file(file_name)};
+  // glshadersource expects array of c-strings
+  const char* shader_chars = shader_source.c_str();
+  glShaderSource(shader, 1, &shader_chars, 0);
+
+  glCompileShader(shader);
+
+  // check if compilation was successfull
+  GLint success = 0;
+  glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+  if(success == 0) {
+    GLint log_size = 0;
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_size);
+
+    char log_buffer[log_size];
+    glGetShaderInfoLog(shader, log_size, &log_size, log_buffer);
+
+    // output errors
+    std::string error{};
+    std::istringstream error_stream{log_buffer};
+    while(std::getline(error_stream, error)) {
+      std::cerr << file_name << error << std::endl;
+    }
+    // free broken shader
+    glDeleteShader(shader);
+
+    throw std::logic_error(file_name);
   }
 
-  return text;
+  return shader;
 }
 
-static void validate_shader(GLuint shader, std::string const& file_name) {
-  const unsigned int BUFFER_SIZE = 512;
-  char buffer[BUFFER_SIZE];
-  memset(buffer, 0, BUFFER_SIZE);
-  GLsizei length = 0;
+GLuint program(std::string const& vertex_name, std::string const& fragment_name) {
 
-  glGetShaderInfoLog(shader, BUFFER_SIZE, &length, buffer);
-  if (length > 0) {
-    std::cerr << "Shader " << shader << " (" << file_name << ") compile Log: " << buffer << std::endl;
-  }
-}
-
-GLuint load(std::string const& file_name, GLenum shader_type) {
-
-  GLuint shader_id = 0;
-  const char* glsl_source;
-
-  glsl_source = read_file(file_name);
-
-  shader_id = glCreateShader(shader_type);
-
-  glShaderSource(shader_id, 1, &glsl_source, 0);
-  glCompileShader(shader_id);
-  validate_shader(shader_id, file_name);
-
-  return shader_id;
-}
-
-GLuint create(std::string const& vertex_name, std::string const& fragment_name) {
-
-  GLuint shader_id = glCreateProgram();
+  GLuint program = glCreateProgram();
 
   //load vert and frag shader
-  GLuint vertex_shader = load(vertex_name, GL_VERTEX_SHADER);
-  GLuint fragment_shader = load(fragment_name, GL_FRAGMENT_SHADER);
+  GLuint vertex_shader = shader(vertex_name, GL_VERTEX_SHADER);
+  GLuint fragment_shader = shader(fragment_name, GL_FRAGMENT_SHADER);
 
   //attach the different shader components to the shader program
-  glAttachShader(shader_id, vertex_shader);
-  glAttachShader(shader_id, fragment_shader);
+  glAttachShader(program, vertex_shader);
+  glAttachShader(program, fragment_shader);
   //and compile it
-  glLinkProgram(shader_id);
+  glLinkProgram(program);
 
   //program is linked, so we can detach compiled shaders again
-  glDetachShader(shader_id, vertex_shader);
-  glDetachShader(shader_id, fragment_shader);
+  glDetachShader(program, vertex_shader);
+  glDetachShader(program, fragment_shader);
   // free objects after linking
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
 
-  return shader_id;
+  return program;
 }
 
 };
