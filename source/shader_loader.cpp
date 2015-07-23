@@ -52,7 +52,7 @@ GLuint shader(std::string const& file_name, GLenum shader_type) {
     std::string error{};
     std::istringstream error_stream{log_buffer};
     while(std::getline(error_stream, error)) {
-      std::cerr << file_name << error << std::endl;
+      std::cerr << file_name << " - " << error << std::endl;
     }
     // free broken shader
     glDeleteShader(shader);

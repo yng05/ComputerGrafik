@@ -4,6 +4,8 @@
 #include <glbinding/Binding.h>
 // load meta info extension
 #include <glbinding/Meta.h>
+// load callback support
+#include <glbinding/callbacks.h>
 
 //dont load gl bindings from glfw
 #define GLFW_INCLUDE_NONE
@@ -24,12 +26,12 @@ using glbinding::Meta;
 
 // the rendering window
 GLFWwindow* window;
-// the main shader program
-GLuint simple_program = 0;
 // variables for fps computation
 double last_second_time = 0;
 unsigned frames_per_second = 0;
-// camera matrices
+// the main shader program
+GLuint simple_program = 0;
+// model vertex objects handles
 GLuint model_vertex_AO = 0;
 GLuint model_vertex_BO = 0;
 // uniform locations
@@ -37,17 +39,71 @@ GLint location_model_matrix = -1;
 GLint location_view_matrix = -1;
 GLint location_projection_matrix = -1;
 
+void quit(int status) {
+  // free opengl resources
+  glDeleteProgram(simple_program);
+  glDeleteBuffers(1, &model_vertex_BO);
+  glDeleteVertexArrays(1, &model_vertex_AO);
+
+  // free glfw resources
+  glfwDestroyWindow(window);
+  glfwTerminate();
+
+  exit(status);
+}
 
 // output current error
-void query_gl_error() {
-  auto error = glGetError();
+bool query_gl_error() {
+  bool error_occured = false;
 
-  if(error != GL_NONE) {
+  GLenum error = glGetError();
+  while(error != GL_NO_ERROR) {
     std::cerr << "OpenGL Error: " << Meta::getString(error) << std::endl;
+    error = glGetError();
+
+    error_occured = true;
+  }
+
+  return error_occured;
+}
+
+// check after every function if error was caused
+void watch_gl_errors(bool activate = true) {
+  if(activate) {
+    // add callback after each function call
+    glbinding::setCallbackMaskExcept(glbinding::CallbackMask::After | glbinding::CallbackMask::ParametersAndReturnValue, { "glGetError" });
+    glbinding::setAfterCallback(
+      [](glbinding::FunctionCall const& call) {
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+          // print name
+          std::cerr <<  "OpenGL Error: " << call.function->name() << "(";
+          // parameters
+          for (unsigned i = 0; i < call.parameters.size(); ++i)
+          {
+            std::cerr << call.parameters[i]->asString();
+            if (i < call.parameters.size() - 1)
+              std::cerr << ", ";
+          }
+          std::cerr << ")";
+          // return value
+          if(call.returnValue) {
+            std::cerr << " -> " << call.returnValue->asString();
+          }
+          // error
+          std::cerr  << " - " << Meta::getString(error) << std::endl;
+
+          quit(EXIT_FAILURE);
+        }
+      }
+    );
+  }
+  else {
+    glbinding::setCallbackMask(glbinding::CallbackMask::None);
   }
 }
 
-GLint get_current_VAO() {
+GLint get_bound_VAO() {
   GLint array = -1;
   glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &array);
 
@@ -63,18 +119,22 @@ void update_uniform_locations() {
 // load shaders and update uniform locations
 void update_shader_programs() {
   try {
+    // throws exception when compiling was unsuccessfull
     GLuint new_program = shader_loader::program("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
+
+    // glDeleteProgram(simple_program);
     simple_program = new_program;
+
+    // bind shader
+    glUseProgram(simple_program);
+    // after shader is recompiled uniform locations may change
+    update_uniform_locations();
+
   }
   catch(std::exception& e) {
     // dont crash, allow another try
   }
 
-  // after shader is recompiled uniform locations may change
-  update_uniform_locations();
-
-  // bind shader
-  glUseProgram(simple_program);
 }
 
 // GLSLS error callback
@@ -157,10 +217,12 @@ void show_fps() {
 
 // render geometry
 void render(GLFWwindow* window) {
+  glUseProgram(simple_program);
 
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 0.0f, 1.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
 
+  glBindVertexArray(model_vertex_AO);
   // draw bound vertex array as triangles using bound shader
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
@@ -179,7 +241,7 @@ int main(void) {
       glfwTerminate();
       exit(EXIT_FAILURE);
   }
-
+  // use the windows context
   glfwMakeContextCurrent(window);
   // disable vsync
   glfwSwapInterval(0);
@@ -189,6 +251,10 @@ int main(void) {
   // initialize glindings in this context
   glbinding::Binding::initialize();
 
+  // activate error checking after each gl function call
+  watch_gl_errors();
+
+  simple_program = shader_loader::program("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
   // do before framebuffer_resize call as it requires the projection uniform location
   update_shader_programs();
 
@@ -200,8 +266,6 @@ int main(void) {
   update_camera();
 
   load_model();
-
-  query_gl_error();
 
   // rendering loop
   while(!glfwWindowShouldClose(window)) {
@@ -215,8 +279,5 @@ int main(void) {
     show_fps();
   }
 
-  // free glfw resources
-  glfwDestroyWindow(window);
-  glfwTerminate();
-  exit(EXIT_SUCCESS);
+  quit(EXIT_SUCCESS);
 }
