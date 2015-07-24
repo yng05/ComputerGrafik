@@ -11,9 +11,10 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+// use radians for everything
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "glm/gtc/type_ptr.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 #include <stdlib.h>
 #include <iostream>
@@ -23,6 +24,12 @@
 // use glbinding functions
 using namespace gl;
 using glbinding::Meta;
+
+// verticel field of view of camera
+const float camera_fov = glm::radians(60.0f);
+// initial window dimensions
+const unsigned window_width = 640;
+const unsigned window_height = 480;
 
 // the rendering window
 GLFWwindow* window;
@@ -112,10 +119,17 @@ GLint get_bound_VAO() {
 
 // update viewport and field of view
 void update_view(GLFWwindow* window, int width, int height) {
+  // resize framebuffer
   glViewport(0, 0, width, height);
-  // use smaller dimension as reference
-  float smaller = width < height ? width : height;
-  glm::mat4 camera_projection = glm::ortho(-width / smaller, width / smaller, -height / smaller, height / smaller, 1.0f, -1.0f);
+
+  float aspect = float(width) / height;
+  float fov_y = camera_fov;
+  // if width is smaller, extend vertical fov 
+  if(width < height) {
+    fov_y = 2.0f * glm::atan(glm::tan(camera_fov * 0.5f) * (1.0f / aspect));
+  }
+  // projection is hor+ 
+  glm::mat4 camera_projection = glm::perspective(fov_y, aspect, 0.1f, 10.0f);
   // upload matrix to gpu
   glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
 }
@@ -123,6 +137,8 @@ void update_view(GLFWwindow* window, int width, int height) {
 // update camera transformation
 void update_camera() {
   glm::mat4 camera_view{};
+  // vertices are transformed in camera space, so camera transform must be inverted
+  camera_view = glm::inverse(camera_view);
   // upload matrix to gpu
   glUniformMatrix4fv(location_view_matrix, 1, GL_FALSE, glm::value_ptr(camera_view));
 }
@@ -178,9 +194,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void load_model() {
   float vertices[] =
   {
-    -0.6f, -0.4f, 0.f,
-    0.6f, -0.4f, 0.f,
-    0.f, 0.6f, 0.0f
+    -0.6f, -0.4f, -2.0f,
+    0.6f, -0.4f, -2.0f,
+    0.f, 0.6f, -2.0f
   };  
 
   // glm::vec3 colors[] =
@@ -239,7 +255,7 @@ int main(void) {
     exit(EXIT_FAILURE);  
   }
 
-  window = glfwCreateWindow(640, 480, "OpenGL Framework", NULL, NULL);
+  window = glfwCreateWindow(window_width, window_height, "OpenGL Framework", NULL, NULL);
 
   if(!window) {
       glfwTerminate();
