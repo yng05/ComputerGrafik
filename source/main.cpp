@@ -110,6 +110,24 @@ GLint get_bound_VAO() {
   return array;
 }
 
+// update viewport and field of view
+void update_view(GLFWwindow* window, int width, int height) {
+  glViewport(0, 0, width, height);
+  // use smaller dimension as reference
+  float smaller = width < height ? width : height;
+  glm::mat4 camera_projection = glm::ortho(-width / smaller, width / smaller, -height / smaller, height / smaller, 1.0f, -1.0f);
+  // upload matrix to gpu
+  glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
+}
+
+// update camera transformation
+void update_camera() {
+  glm::mat4 camera_view{};
+  // upload matrix to gpu
+  glUniformMatrix4fv(location_view_matrix, 1, GL_FALSE, glm::value_ptr(camera_view));
+}
+
+// update shader uniform locations
 void update_uniform_locations() {
   location_model_matrix = glGetUniformLocation(simple_program, "ModelMatrix");
   location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
@@ -121,15 +139,20 @@ void update_shader_programs() {
   try {
     // throws exception when compiling was unsuccessfull
     GLuint new_program = shader_loader::program("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
-
-    // glDeleteProgram(simple_program);
+    // free old shader
+    glDeleteProgram(simple_program);
+    // save new shader
     simple_program = new_program;
-
     // bind shader
     glUseProgram(simple_program);
     // after shader is recompiled uniform locations may change
     update_uniform_locations();
 
+    // upload view uniforms to new shader
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    update_view(window, width, height);
+    update_camera();
   }
   catch(std::exception& e) {
     // dont crash, allow another try
@@ -149,23 +172,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   else if(key == GLFW_KEY_R && action == GLFW_PRESS) {
     update_shader_programs();
   }
-}
-
-// update viewport and field of view
-void update_view(GLFWwindow* window, int width, int height) {
-  glViewport(0, 0, width, height);
-  // use smaller dimension as reference
-  float smaller = width < height ? width : height;
-  glm::mat4 camera_projection = glm::ortho(-width / smaller, width / smaller, -height / smaller, height / smaller, 1.0f, -1.0f);
-  // upload matrix to gpu
-  glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
-}
-
-// update camera transformation
-void update_camera() {
-  glm::mat4 camera_view{};
-  // upload matrix to gpu
-  glUniformMatrix4fv(location_view_matrix, 1, GL_FALSE, glm::value_ptr(camera_view));
 }
 
 // load geometry
@@ -217,8 +223,6 @@ void show_fps() {
 
 // render geometry
 void render(GLFWwindow* window) {
-  glUseProgram(simple_program);
-
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 0.0f, 1.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
 
