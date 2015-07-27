@@ -1,38 +1,37 @@
 #include "mesh.hpp"
 
-std::map<Attribute, attribute> mesh::supported_attributes
- = {{Attribute::POSITION, attribute{sizeof(float), 3, GL_FLOAT}},
-    {Attribute::NORMAL,   attribute{sizeof(float), 3, GL_FLOAT}},
-    {Attribute::TEXCOORD, attribute{sizeof(float), 2, GL_FLOAT}},
-    {Attribute::TANGENT,  attribute{sizeof(float), 3, GL_FLOAT}},
-    {Attribute::BITANGENT,attribute{sizeof(float), 3, GL_FLOAT}},
-    {Attribute::TRIANGLE, attribute{sizeof(unsigned),  1, GL_UNSIGNED_INT}}
+namespace Attribute {
+
+const std::vector<attribute_t> slots
+ = {  
+    /*POSITION*/{ 1 << 0, sizeof(float), 3, GL_FLOAT},
+    /*NORMAL*/{   1 << 1, sizeof(float), 3, GL_FLOAT},
+    /*TEXCOORD*/{ 1 << 2, sizeof(float), 2, GL_FLOAT},
+    /*TANGENT*/{  1 << 3, sizeof(float), 3, GL_FLOAT},
+    /*BITANGENT*/{1 << 4, sizeof(float), 3, GL_FLOAT},
+    /*TRIANGLE*/{ 1 << 5, sizeof(unsigned),  1, GL_UNSIGNED_INT}
  };
 
-mesh::mesh(std::vector<float> const& databuff, Attributes contained_attributes, std::vector<unsigned> const& trianglebuff)
+attribute_t const& POSITION = slots[0];
+attribute_t const& NORMAL = slots[1];
+attribute_t const& TEXCOORD = slots[2];
+attribute_t const& TANGENT = slots[3];
+attribute_t const& BITANGENT = slots[4];
+attribute_t const& TRIANGLE = slots[5];
+};
+
+mesh::mesh(std::vector<float> const& databuff, attrib_flag_t contained_attributes, std::vector<unsigned> const& trianglebuff)
  :data{databuff}
  ,triangles{trianglebuff}
- ,attributes{}
  ,stride{0}
 {
-  for (auto const& supported_attribute : supported_attributes) {
-    // check ig buffer contains attribute
-    if (supported_attribute.first & contained_attributes) {
-      attribute new_attribute{supported_attribute.second};
-      new_attribute.offset = (GLvoid*)uintptr_t(stride);
+  for (auto const& supported_attribute : Attribute::slots) {
+    // check if buffer contains attribute
+    if (supported_attribute.flag & contained_attributes) {
+      // write offset, explicit cast to prevent narrowing warning
+      offsets.insert(std::pair<attrib_flag_t, GLvoid*>{supported_attribute, (GLvoid*)uintptr_t(stride)});
       // move offset pointer forward
-      stride += supported_attribute.second.size * supported_attribute.second.components;
-
-      // put the info in the map
-      attributes.insert(std::pair<Attribute, attribute>{supported_attribute.first, new_attribute});
+      stride += supported_attribute.size * supported_attribute.components;
     }
   }
-  // check if index buffer is included
-  if (trianglebuff.size() > 0) {
-    attributes.insert(std::pair<Attribute, attribute>{Attribute::TRIANGLE, supported_attributes.at(Attribute::TRIANGLE)});
-  }
-}
-
-attribute const& mesh::operator[](Attribute const& attr) const {
-  return attributes.at(attr);
 }

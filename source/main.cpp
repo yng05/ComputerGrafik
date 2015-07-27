@@ -219,7 +219,7 @@ void load_model() {
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(0, mesh[Attribute::POSITION].components, mesh[Attribute::POSITION].type, GL_FALSE, mesh.stride, mesh[Attribute::POSITION].offset);
+  glVertexAttribPointer(0, Attribute::POSITION.components, Attribute::POSITION.type, GL_FALSE, mesh.stride, mesh.offsets[Attribute::POSITION]);
 
 }
 

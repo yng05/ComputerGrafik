@@ -3,19 +3,17 @@
 
 namespace model_loader {
 
-mesh obj(std::string const& name, Attributes import_attribs){
+mesh obj(std::string const& name, attrib_flag_t import_attribs){
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
 
   std::string err = tinyobj::LoadObj(shapes, materials, name.c_str());
 
   if (!err.empty()) {
-    std::cerr << "File \'" << name << "\' not found" << std::endl;
-    
-    throw std::invalid_argument(name);
+    std::cerr << "tinyobjloader error: " << err << std::endl;    
   }
 
-  Attributes attributes{Attribute::POSITION | import_attribs};
+  attrib_flag_t attributes{Attribute::POSITION | import_attribs};
 
   if(import_attribs & Attribute::TANGENT) {
     std::cerr << "Attribute not supported" << std::endl;

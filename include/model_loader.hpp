@@ -6,7 +6,7 @@
 
 namespace model_loader {
 
-mesh obj(std::string const& path, Attributes import_attribs = Attribute::POSITION);
+mesh obj(std::string const& path, attrib_flag_t import_attribs = Attribute::POSITION);
 
 }
 
