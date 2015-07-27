@@ -16,12 +16,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+// load tinyobjloader
+#include <tiny_obj_loader.h>
+
 #include <stdlib.h>
 #include <iostream>
 
-#include <shader_loader.hpp>
+#include "shader_loader.hpp"
+#include "model_loader.hpp"
 
-// use glbinding functions
+// use gl definitions from glbinding 
 using namespace gl;
 using glbinding::Meta;
 
@@ -192,12 +196,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 // load geometry
 void load_model() {
-  float vertices[] =
-  {
-    -0.6f, -0.4f, -2.0f,
-    0.6f, -0.4f, -2.0f,
-    0.f, 0.6f, -2.0f
-  };  
+  mesh mesh = model_loader::obj("../resources/models/triangle.obj");
 
   // glm::vec3 colors[] =
   // {
@@ -215,12 +214,13 @@ void load_model() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ARRAY_BUFFER, model_vertex_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 3, &vertices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * mesh.data.size(), &mesh.data[0], GL_STATIC_DRAW);
 
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  glVertexAttribPointer(0, mesh[Attribute::POSITION].components, mesh[Attribute::POSITION].type, GL_FALSE, mesh.stride, mesh[Attribute::POSITION].offset);
+
 }
 
 // calculate fps and show in window title
