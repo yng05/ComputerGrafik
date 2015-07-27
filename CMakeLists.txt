@@ -23,6 +23,11 @@ set(BUILD_SHARED_LIBS ${DYNAMIC_LINKING} CACHE BOOL "Build shared libraries" FOR
 # include glm headers
 include_directories(external/glm-0.9.6.3)
 
+# add tinyobjloader
+include_directories(external/tinyobjloader-aa07206)
+# just one file so it can be directly compiled into main exe
+file(GLOB TINYOBJLOADER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader-aa07206/*.cc)
+
 # add glbindings
 option(OPTION_BUILD_TESTS OFF)
 add_subdirectory(external/glbinding-1.1.0)
@@ -40,7 +45,7 @@ include_directories(external/glfw-3.1.1/include)
 
 # output executables
 file(GLOB FRAMEWORK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
-add_executable(OpenGLFramework ${FRAMEWORK_SOURCES})
+add_executable(OpenGLFramework ${FRAMEWORK_SOURCES} ${TINYOBJLOADER_SOURCES})
 target_include_directories(OpenGLFramework PRIVATE include)
 target_link_libraries(OpenGLFramework glfw ${GLFW_LIBRARIES} glbinding)
 
