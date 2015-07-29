@@ -11,9 +11,11 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-// use radians for everything
+// use floats and med precision operations
+#define GLM_PRECISION_MEDIUMP_FLOAT
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 // load tinyobjloader
@@ -42,10 +44,17 @@ double last_second_time = 0;
 unsigned frames_per_second = 0;
 // the main shader program
 GLuint simple_program = 0;
+// cpu representation of model
+mesh mesh{};
 // model vertex objects handles
 GLuint model_vertex_AO = 0;
 GLuint model_vertex_BO = 0;
+GLuint model_triangle_BO = 0;
+// camera matrices
+glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 1.0f});
+glm::mat4 camera_projection{};
 // uniform locations
+GLint location_normal_matrix = -1;
 GLint location_model_matrix = -1;
 GLint location_view_matrix = -1;
 GLint location_projection_matrix = -1;
@@ -54,6 +63,7 @@ void quit(int status) {
   // free opengl resources
   glDeleteProgram(simple_program);
   glDeleteBuffers(1, &model_vertex_BO);
+  glDeleteVertexArrays(1, &model_triangle_BO);
   glDeleteVertexArrays(1, &model_vertex_AO);
 
   // free glfw resources
@@ -133,22 +143,23 @@ void update_view(GLFWwindow* window, int width, int height) {
     fov_y = 2.0f * glm::atan(glm::tan(camera_fov * 0.5f) * (1.0f / aspect));
   }
   // projection is hor+ 
-  glm::mat4 camera_projection = glm::perspective(fov_y, aspect, 0.1f, 10.0f);
+  camera_projection = glm::perspective(fov_y, aspect, 0.1f, 10.0f);
   // upload matrix to gpu
   glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
 }
 
 // update camera transformation
 void update_camera() {
-  glm::mat4 camera_view{};
+
   // vertices are transformed in camera space, so camera transform must be inverted
-  camera_view = glm::inverse(camera_view);
+  glm::mat4 inv_camera_view = glm::inverse(camera_view);
   // upload matrix to gpu
-  glUniformMatrix4fv(location_view_matrix, 1, GL_FALSE, glm::value_ptr(camera_view));
+  glUniformMatrix4fv(location_view_matrix, 1, GL_FALSE, glm::value_ptr(inv_camera_view));
 }
 
 // update shader uniform locations
 void update_uniform_locations() {
+  location_normal_matrix = glGetUniformLocation(simple_program, "NormalMatrix");
   location_model_matrix = glGetUniformLocation(simple_program, "ModelMatrix");
   location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
   location_projection_matrix = glGetUniformLocation(simple_program, "ProjectionMatrix");
@@ -196,7 +207,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 // load geometry
 void load_model() {
-  mesh mesh = model_loader::obj("../resources/models/triangle.obj", Attribute::NORMAL);
+  mesh = model_loader::obj("../resources/models/triangle.obj", Attribute::NORMAL);
 
   // generate vertex array object
   glGenVertexArrays(1, &model_vertex_AO);
@@ -218,6 +229,13 @@ void load_model() {
   glEnableVertexAttribArray(1);
   // second attribute is 3 floats with no offset & stride
   glVertexAttribPointer(1, Attribute::NORMAL.components, Attribute::NORMAL.type, GL_FALSE, mesh.stride, mesh.offsets[Attribute::NORMAL]);
+
+   // generate generic buffer
+  glGenBuffers(1, &model_triangle_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model_triangle_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, Attribute::TRIANGLE.size * mesh.triangles.size(), &mesh.triangles[0], GL_STATIC_DRAW);
 }
 
 // calculate fps and show in window title
@@ -238,10 +256,13 @@ void show_fps() {
 void render(GLFWwindow* window) {
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 0.0f, 1.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
+  // extra matrix for normal transformation to keep them orthogonal to surface
+  glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
+  glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
   glBindVertexArray(model_vertex_AO);
   // draw bound vertex array as triangles using bound shader
-  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glDrawElements(GL_TRIANGLES, mesh.triangles.size(), Attribute::TRIANGLE.type, NULL);
 }
 
 int main(void) {
