@@ -8,6 +8,8 @@ namespace model_loader {
 
 mesh obj(std::string const& path, attrib_flag_t import_attribs = Attribute::POSITION);
 
+void generate_normals(tinyobj::mesh_t& mesh);
+
 }
 
 #endif

@@ -1,4 +1,10 @@
 #include "model_loader.hpp"
+
+// use floats and med precision operations
+#define GLM_PRECISION_MEDIUMP_FLOAT
+#include <glm/vec3.hpp>
+#include <glm/geometric.hpp>
+
 #include <iostream>
 
 namespace model_loader {
@@ -30,17 +36,17 @@ mesh obj(std::string const& name, attrib_flag_t import_attribs){
 
   unsigned vertex_offset = 0;
 
-  for (auto const& shape : shapes) {
-    tinyobj::mesh_t const& curr_mesh = shape.mesh;
+  for (auto& shape : shapes) {
+    tinyobj::mesh_t& curr_mesh = shape.mesh;
     // std::cout << curr_mesh.normals.size() << std::endl;
     bool has_normals = true;
     if (curr_mesh.normals.empty()) {
-      has_normals = false;
       if(import_attribs & Attribute::NORMAL) {
-        // disable attribute
-        attributes ^= Attribute::NORMAL;
-        // generate normals?
-        std::cerr << "Shape has no normals" << std::endl;
+        // generate normals
+        generate_normals(curr_mesh);
+      }
+      else {
+        has_normals = false;
       }
     }
 
@@ -82,6 +88,31 @@ mesh obj(std::string const& name, attrib_flag_t import_attribs){
   }
 
   return mesh{vertex_data, attributes, triangles};
+}
+
+void generate_normals(tinyobj::mesh_t& mesh) {
+  std::vector<glm::vec3> positions(mesh.positions.size() / 3);
+
+  for (unsigned i = 0; i < mesh.positions.size(); i+=3) {
+    positions[i / 3] = glm::vec3{mesh.positions[i], mesh.positions[i + 1], mesh.positions[i + 2]};
+  }
+
+  std::vector<glm::vec3> normals(mesh.positions.size() / 3, glm::vec3{0.0f});
+  for (unsigned i = 0; i < mesh.indices.size(); i+=3) {
+    glm::vec3 normal = glm::cross(positions[mesh.indices[i+1]] - positions[mesh.indices[i]], positions[mesh.indices[i+2]] - positions[mesh.indices[i]]);
+
+    normals[mesh.indices[i]] += normal;
+    normals[mesh.indices[i+1]] += normal;
+    normals[mesh.indices[i+2]] += normal;
+  }
+
+  mesh.normals.reserve(mesh.positions.size());
+  for (unsigned i = 0; i < normals.size(); ++i) {
+    glm::vec3 normal = glm::normalize(normals[i]);
+    mesh.normals[i * 3] = normal[0];
+    mesh.normals[i * 3 + 1] = normal[1];
+    mesh.normals[i * 3 + 2] = normal[2];
+  }
 }
 
 };
