@@ -10,14 +10,19 @@ mesh obj(std::string const& name, attrib_flag_t import_attribs){
   std::string err = tinyobj::LoadObj(shapes, materials, name.c_str());
 
   if (!err.empty()) {
-    std::cerr << "tinyobjloader error: " << err << std::endl;    
+    if (err[0] == 'W' && err[1] == 'A' && err[2] == 'R') {
+      std::cerr << "tinyobjloader: " << err << std::endl;    
+    }
+    else {
+      throw std::logic_error("tinyobjloader: " + err);    
+    }
   }
 
   attrib_flag_t attributes{Attribute::POSITION | import_attribs};
 
   if(import_attribs & Attribute::TANGENT) {
-    std::cerr << "Attribute not supported" << std::endl;
-    throw std::invalid_argument(name);
+    // create tangents and bitangents?
+    throw std::invalid_argument("Attribute nr. " + std::to_string(Attribute::TANGENT) + "not supported");
   }
 
   std::vector<float> vertex_data;
@@ -27,24 +32,23 @@ mesh obj(std::string const& name, attrib_flag_t import_attribs){
 
   for (auto const& shape : shapes) {
     tinyobj::mesh_t const& curr_mesh = shape.mesh;
-
-    // create tangents and bitangents
-
+    // std::cout << curr_mesh.normals.size() << std::endl;
     bool has_normals = true;
-    if (curr_mesh.normals.size() < 0 || curr_mesh.normals.size() < curr_mesh.positions.size()) {
+    if (curr_mesh.normals.empty()) {
       has_normals = false;
       if(import_attribs & Attribute::NORMAL) {
+        // disable attribute
+        attributes ^= Attribute::NORMAL;
         // generate normals?
-        attributes &= Attribute::NORMAL;
         std::cerr << "Shape has no normals" << std::endl;
       }
     }
 
     bool has_uvs = true;
-    if (curr_mesh.texcoords.size() < 0 || curr_mesh.texcoords.size() < curr_mesh.positions.size()) {
+    if (curr_mesh.texcoords.empty()) {
       has_uvs = false;
       if(import_attribs & Attribute::TEXCOORD) {
-        attributes &= Attribute::TEXCOORD;
+        attributes ^= Attribute::TEXCOORD;
         std::cerr << "Shape has no texcoords" << std::endl;
       }
     }

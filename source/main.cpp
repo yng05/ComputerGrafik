@@ -196,14 +196,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 // load geometry
 void load_model() {
-  mesh mesh = model_loader::obj("../resources/models/triangle.obj");
+  mesh mesh = model_loader::obj("../resources/models/triangle.obj", Attribute::NORMAL);
 
-  // glm::vec3 colors[] =
-  // {
-  //   {1.f, 0.f, 0.f},
-  //   {0.f, 1.f, 0.f},
-  //   {0.f, 0.f, 1.f}
-  // };  
   // generate vertex array object
   glGenVertexArrays(1, &model_vertex_AO);
   // bind the array for attaching buffers
@@ -220,7 +214,10 @@ void load_model() {
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
   glVertexAttribPointer(0, Attribute::POSITION.components, Attribute::POSITION.type, GL_FALSE, mesh.stride, mesh.offsets[Attribute::POSITION]);
-
+  // activate second attribute on gpu
+  glEnableVertexAttribArray(1);
+  // second attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(1, Attribute::NORMAL.components, Attribute::NORMAL.type, GL_FALSE, mesh.stride, mesh.offsets[Attribute::NORMAL]);
 }
 
 // calculate fps and show in window title

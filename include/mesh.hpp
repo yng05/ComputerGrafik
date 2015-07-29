@@ -60,8 +60,8 @@ extern attribute_t const& TRIANGLE;
 
 // holds vertex information and triangle indices
 struct mesh {
+  mesh();
   mesh(std::vector<float> const& databuff, attrib_flag_t attribs, std::vector<unsigned> const& trianglebuff = std::vector<unsigned>{});
-  mesh(){};
 
   std::vector<float> data;
   std::vector<unsigned> triangles;
