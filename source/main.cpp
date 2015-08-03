@@ -51,7 +51,7 @@ GLuint model_vertex_AO = 0;
 GLuint model_vertex_BO = 0;
 GLuint model_triangle_BO = 0;
 // camera matrices
-glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 1.0f});
+glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
 glm::mat4 camera_projection{};
 // uniform locations
 GLint location_normal_matrix = -1;
@@ -254,7 +254,7 @@ void show_fps() {
 
 // render geometry
 void render(GLFWwindow* window) {
-  glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 0.0f, 1.0f});
+  glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
   // extra matrix for normal transformation to keep them orthogonal to surface
   glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
@@ -304,7 +304,10 @@ int main(void) {
   update_camera();
 
   load_model();
-
+  // Enables Depth Testing
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LESS);
+  
   // rendering loop
   while(!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

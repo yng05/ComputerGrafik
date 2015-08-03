@@ -38,44 +38,40 @@ mesh obj(std::string const& name, attrib_flag_t import_attribs){
 
   for (auto& shape : shapes) {
     tinyobj::mesh_t& curr_mesh = shape.mesh;
-    // std::cout << curr_mesh.normals.size() << std::endl;
-    bool has_normals = true;
-    if (curr_mesh.normals.empty()) {
-      if(import_attribs & Attribute::NORMAL) {
-        // generate normals
+    
+    bool has_normals = import_attribs & Attribute::NORMAL;
+    if(has_normals) {
+      // generate normals if necessary
+      if (curr_mesh.normals.empty()) {
         generate_normals(curr_mesh);
-      }
-      else {
-        has_normals = false;
       }
     }
 
-    bool has_uvs = true;
-    if (curr_mesh.texcoords.empty()) {
-      has_uvs = false;
-      if(import_attribs & Attribute::TEXCOORD) {
+    bool has_uvs = import_attribs & Attribute::TEXCOORD;
+    if(has_uvs) {
+      if (curr_mesh.texcoords.empty()) {
+        has_uvs = false;
         attributes ^= Attribute::TEXCOORD;
         std::cerr << "Shape has no texcoords" << std::endl;
       }
     }
 
-    for (unsigned i = 0; i < curr_mesh.positions.size(); i+=3) {
-      vertex_data.push_back(curr_mesh.positions[i]);
-      vertex_data.push_back(curr_mesh.positions[i + 1]);
-      vertex_data.push_back(curr_mesh.positions[i + 2]);
+    // push back vertex attributes
+    for (unsigned i = 0; i < curr_mesh.positions.size() / 3; ++i) {
+      vertex_data.push_back(curr_mesh.positions[i * 3]);
+      vertex_data.push_back(curr_mesh.positions[i * 3 + 1]);
+      vertex_data.push_back(curr_mesh.positions[i * 3 + 2]);
 
       if (has_normals) {
-        vertex_data.push_back(curr_mesh.normals[i]);
-        vertex_data.push_back(curr_mesh.normals[i + 1]);
-        vertex_data.push_back(curr_mesh.normals[i + 2]);
+        vertex_data.push_back(curr_mesh.normals[i * 3]);
+        vertex_data.push_back(curr_mesh.normals[i * 3 + 1]);
+        vertex_data.push_back(curr_mesh.normals[i * 3 + 2]);
       }
 
       if (has_uvs) {
-        vertex_data.push_back(curr_mesh.texcoords[i]);
-        vertex_data.push_back(curr_mesh.texcoords[i + 1]);
-        vertex_data.push_back(curr_mesh.texcoords[i + 2]);
+        vertex_data.push_back(curr_mesh.texcoords[i * 2]);
+        vertex_data.push_back(curr_mesh.texcoords[i * 2 + 1]);
       }
-
     }
 
     // add triangles
@@ -83,7 +79,6 @@ mesh obj(std::string const& name, attrib_flag_t import_attribs){
       triangles.push_back(vertex_offset + curr_mesh.indices[i]);
     }
 
-    // increase vertex offset by number of verts of current mesh
     vertex_offset += curr_mesh.positions.size() / 3;
   }
 

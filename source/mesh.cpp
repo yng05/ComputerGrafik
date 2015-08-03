@@ -16,7 +16,7 @@ attribute_t const& NORMAL = slots[1];
 attribute_t const& TEXCOORD = slots[2];
 attribute_t const& TANGENT = slots[3];
 attribute_t const& BITANGENT = slots[4];
-attribute_t const& TRIANGLE{ 1 << 5, sizeof(unsigned),  1, GL_UNSIGNED_INT};
+attribute_t const TRIANGLE{ 1 << 5, sizeof(unsigned),  1, GL_UNSIGNED_INT};
 };
 
 mesh::mesh()

@@ -55,7 +55,7 @@ extern attribute_t const& NORMAL;
 extern attribute_t const& TEXCOORD;
 extern attribute_t const& TANGENT;
 extern attribute_t const& BITANGENT;
-extern attribute_t const& TRIANGLE;
+extern attribute_t const TRIANGLE;
 }
 
 // holds vertex information and triangle indices
