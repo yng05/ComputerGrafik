@@ -1,8 +1,6 @@
 #include "mesh.hpp"
 
-namespace Attribute {
-
-const std::vector<attribute_t> slots
+std::vector<mesh::attribute> const mesh::VERTEX_ATTRIBS
  = {  
     /*POSITION*/{ 1 << 0, sizeof(float), 3, GL_FLOAT},
     /*NORMAL*/{   1 << 1, sizeof(float), 3, GL_FLOAT},
@@ -11,13 +9,12 @@ const std::vector<attribute_t> slots
     /*BITANGENT*/{1 << 4, sizeof(float), 3, GL_FLOAT}
  };
 
-attribute_t const& POSITION = slots[0];
-attribute_t const& NORMAL = slots[1];
-attribute_t const& TEXCOORD = slots[2];
-attribute_t const& TANGENT = slots[3];
-attribute_t const& BITANGENT = slots[4];
-attribute_t const TRIANGLE{ 1 << 5, sizeof(unsigned),  1, GL_UNSIGNED_INT};
-};
+mesh::attribute const& mesh::POSITION = mesh::VERTEX_ATTRIBS[0];
+mesh::attribute const& mesh::NORMAL = mesh::VERTEX_ATTRIBS[1];
+mesh::attribute const& mesh::TEXCOORD = mesh::VERTEX_ATTRIBS[2];
+mesh::attribute const& mesh::TANGENT = mesh::VERTEX_ATTRIBS[3];
+mesh::attribute const& mesh::BITANGENT = mesh::VERTEX_ATTRIBS[4];
+mesh::attribute const  mesh::TRIANGLE{1 << 5, sizeof(unsigned),  1, GL_UNSIGNED_INT};
 
 mesh::mesh()
  :data{}
@@ -32,7 +29,7 @@ mesh::mesh(std::vector<float> const& databuff, attrib_flag_t contained_attribute
  ,offsets{}
  ,stride{0}
 {
-  for (auto const& supported_attribute : Attribute::slots) {
+  for (auto const& supported_attribute : mesh::VERTEX_ATTRIBS) {
     // check if buffer contains attribute
     if (supported_attribute.flag & contained_attributes) {
       // write offset, explicit cast to prevent narrowing warning

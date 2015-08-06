@@ -150,7 +150,6 @@ void update_view(GLFWwindow* window, int width, int height) {
 
 // update camera transformation
 void update_camera() {
-
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::mat4 inv_camera_view = glm::inverse(camera_view);
   // upload matrix to gpu
@@ -203,11 +202,21 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   else if(key == GLFW_KEY_R && action == GLFW_PRESS) {
     update_shader_programs();
   }
+  else if(key == GLFW_KEY_W && action == GLFW_PRESS) {
+    camera_view = glm::translate(camera_view, glm::vec3{0.0f, 0.0f, -0.1f});
+    std::cout << "w" << std::endl;
+    update_camera();
+  }
+  else if(key == GLFW_KEY_S && action == GLFW_PRESS) {
+    camera_view = glm::translate(camera_view, glm::vec3{0.0f, 0.0f, 0.1f});
+    std::cout << "s" << std::endl;
+    update_camera();
+  }
 }
 
 // load geometry
 void load_model() {
-  mesh = model_loader::obj("../resources/models/triangle.obj", Attribute::NORMAL);
+  mesh = model_loader::obj("../resources/models/triangle.obj", mesh::NORMAL);
 
   // generate vertex array object
   glGenVertexArrays(1, &model_vertex_AO);
@@ -224,18 +233,18 @@ void load_model() {
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(0, Attribute::POSITION.components, Attribute::POSITION.type, GL_FALSE, mesh.stride, mesh.offsets[Attribute::POSITION]);
+  glVertexAttribPointer(0, mesh::POSITION.components, mesh::POSITION.type, GL_FALSE, mesh.stride, mesh.offsets[mesh::POSITION]);
   // activate second attribute on gpu
   glEnableVertexAttribArray(1);
   // second attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(1, Attribute::NORMAL.components, Attribute::NORMAL.type, GL_FALSE, mesh.stride, mesh.offsets[Attribute::NORMAL]);
+  glVertexAttribPointer(1, mesh::NORMAL.components, mesh::NORMAL.type, GL_FALSE, mesh.stride, mesh.offsets[mesh::NORMAL]);
 
    // generate generic buffer
   glGenBuffers(1, &model_triangle_BO);
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model_triangle_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, Attribute::TRIANGLE.size * mesh.triangles.size(), &mesh.triangles[0], GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh::TRIANGLE.size * mesh.triangles.size(), &mesh.triangles[0], GL_STATIC_DRAW);
 }
 
 // calculate fps and show in window title
@@ -262,7 +271,7 @@ void render(GLFWwindow* window) {
 
   glBindVertexArray(model_vertex_AO);
   // draw bound vertex array as triangles using bound shader
-  glDrawElements(GL_TRIANGLES, mesh.triangles.size(), Attribute::TRIANGLE.type, NULL);
+  glDrawElements(GL_TRIANGLES, mesh.triangles.size(), mesh::TRIANGLE.type, NULL);
 }
 
 int main(void) {
