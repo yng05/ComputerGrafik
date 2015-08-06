@@ -244,7 +244,7 @@ void load_model() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model_triangle_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh::TRIANGLE.size * mesh.triangles.size(), &mesh.triangles[0], GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh::INDEX.size * mesh.indices.size(), &mesh.indices[0], GL_STATIC_DRAW);
 }
 
 // calculate fps and show in window title
@@ -271,7 +271,7 @@ void render(GLFWwindow* window) {
 
   glBindVertexArray(model_vertex_AO);
   // draw bound vertex array as triangles using bound shader
-  glDrawElements(GL_TRIANGLES, mesh.triangles.size(), mesh::TRIANGLE.type, NULL);
+  glDrawElements(GL_TRIANGLES, mesh.indices.size(), mesh::INDEX.type, NULL);
 }
 
 int main(void) {

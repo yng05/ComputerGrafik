@@ -50,17 +50,18 @@ struct mesh {
   static attribute const& TANGENT;
   static attribute const& BITANGENT;
   // is not a vertex attribute, so not stored in VERTEX_ATTRIBS
-  static attribute const  TRIANGLE;
+  static attribute const  INDEX;
   
   mesh();
   mesh(std::vector<float> const& databuff, attrib_flag_t attribs, std::vector<unsigned> const& trianglebuff = std::vector<unsigned>{});
 
   std::vector<float> data;
-  std::vector<unsigned> triangles;
+  std::vector<unsigned> indices;
   // byte offsets of individual element attributes
   std::map<attrib_flag_t, GLvoid*> offsets;
   // size of one vertex element in bytes
   GLsizei stride;
+  std::size_t vertex_num;
 };
 
 #endif
