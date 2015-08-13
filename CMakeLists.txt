@@ -43,9 +43,11 @@ add_subdirectory(external/glfw-3.1.1)
 # include glfw headers
 include_directories(external/glfw-3.1.1/include)
 
+# include framework headers
+include_directories(framework/include)
 # output executables
-file(GLOB FRAMEWORK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
-add_executable(OpenGLFramework ${FRAMEWORK_SOURCES} ${TINYOBJLOADER_SOURCES})
+file(GLOB FRAMEWORK_SOURCES framework/source/*.cpp)
+add_executable(OpenGLFramework application/solar_system.cpp ${FRAMEWORK_SOURCES} ${TINYOBJLOADER_SOURCES})
 target_include_directories(OpenGLFramework PRIVATE include)
 target_link_libraries(OpenGLFramework glfw ${GLFW_LIBRARIES} glbinding)
 
