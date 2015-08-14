@@ -16,12 +16,19 @@ if(DYNAMIC_LINKING)
 else()
     set(OPTION_BUILD_STATIC ON CACHE BOOL "Build static libraries" FORCE)
     set(GLBINDING_STATIC ON CACHE BOOL "No help, variable specified on the command line." FORCE)
+    # stb_image
+    add_definitions(-DSTB_IMAGE_STATIC)
 endif()    
 # glfw
 set(BUILD_SHARED_LIBS ${DYNAMIC_LINKING} CACHE BOOL "Build shared libraries" FORCE)
 
-# include glm headers
+# include glm
 include_directories(external/glm-0.9.6.3)
+
+# include stb_image
+include_directories(external/stb_image-2.0.6)
+# suppress warnings caused by stb_image which is compiled in texture_loader 
+set_source_files_properties(framework/source/texture_loader.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable")
 
 # add tinyobjloader
 include_directories(external/tinyobjloader-aa07206)
@@ -62,7 +69,7 @@ endif()
 # activate C++ 11
 if(NOT MSVC)
     add_definitions(-std=c++11)
-    # show warnings but ignore those caused by glm  
+    # show warnings but ignore those caused by glm and stb_image
     add_definitions(-Wall -Wno-comment -Wno-strict-aliasing)
     # force linking  with c++11 lib
     if(APPLE)
@@ -70,6 +77,7 @@ if(NOT MSVC)
         add_definitions(-stdlib=libc++)
     endif()
 endif()
+
 
 # remove external configuration vars from cmake gui
 mark_as_advanced(OPTION_BUILD_TESTS GMOCK_LIBRARY GMOCK_LIBRARY_DEBUG GTEST_LIBRARY
