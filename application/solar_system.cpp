@@ -46,10 +46,13 @@ unsigned frames_per_second = 0;
 GLuint simple_program = 0;
 // cpu representation of model
 mesh mesh{};
-// model vertex objects handles
-GLuint model_vertex_AO = 0;
-GLuint model_vertex_BO = 0;
-GLuint model_triangle_BO = 0;
+// holds gpu representation of model
+struct geometry {
+  GLuint vertex_AO = 0;
+  GLuint vertex_BO = 0;
+  GLuint element_BO = 0;
+};
+geometry model;
 // camera matrices
 glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
 glm::mat4 camera_projection{};
@@ -62,9 +65,9 @@ GLint location_projection_matrix = -1;
 void quit(int status) {
   // free opengl resources
   glDeleteProgram(simple_program);
-  glDeleteBuffers(1, &model_vertex_BO);
-  glDeleteVertexArrays(1, &model_triangle_BO);
-  glDeleteVertexArrays(1, &model_vertex_AO);
+  glDeleteBuffers(1, &model.vertex_BO);
+  glDeleteVertexArrays(1, &model.element_BO);
+  glDeleteVertexArrays(1, &model.vertex_AO);
 
   // free glfw resources
   glfwDestroyWindow(window);
@@ -219,14 +222,14 @@ void load_model() {
   mesh = model_loader::obj("../resources/models/triangle.obj", mesh::NORMAL);
 
   // generate vertex array object
-  glGenVertexArrays(1, &model_vertex_AO);
+  glGenVertexArrays(1, &model.vertex_AO);
   // bind the array for attaching buffers
-  glBindVertexArray(model_vertex_AO);
+  glBindVertexArray(model.vertex_AO);
 
   // generate generic buffer
-  glGenBuffers(1, &model_vertex_BO);
+  glGenBuffers(1, &model.vertex_BO);
   // bind this as an vertex array buffer containing all attributes
-  glBindBuffer(GL_ARRAY_BUFFER, model_vertex_BO);
+  glBindBuffer(GL_ARRAY_BUFFER, model.vertex_BO);
   // configure currently bound array buffer
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * mesh.data.size(), &mesh.data[0], GL_STATIC_DRAW);
 
@@ -240,9 +243,9 @@ void load_model() {
   glVertexAttribPointer(1, mesh::NORMAL.components, mesh::NORMAL.type, GL_FALSE, mesh.stride, mesh.offsets[mesh::NORMAL]);
 
    // generate generic buffer
-  glGenBuffers(1, &model_triangle_BO);
+  glGenBuffers(1, &model.element_BO);
   // bind this as an vertex array buffer containing all attributes
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model_triangle_BO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.element_BO);
   // configure currently bound array buffer
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh::INDEX.size * mesh.indices.size(), &mesh.indices[0], GL_STATIC_DRAW);
 }
@@ -269,7 +272,7 @@ void render(GLFWwindow* window) {
   glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
   glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
-  glBindVertexArray(model_vertex_AO);
+  glBindVertexArray(model.vertex_AO);
   // draw bound vertex array as triangles using bound shader
   glDrawElements(GL_TRIANGLES, mesh.indices.size(), mesh::INDEX.type, NULL);
 }
