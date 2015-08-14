@@ -6,7 +6,7 @@
 using namespace gl;
 
 namespace texture_loader {
-
+  GLuint texture(std::string const& file_name);
 };
 
 #endif
