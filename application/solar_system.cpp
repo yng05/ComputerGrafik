@@ -61,6 +61,8 @@ GLint location_normal_matrix = -1;
 GLint location_model_matrix = -1;
 GLint location_view_matrix = -1;
 GLint location_projection_matrix = -1;
+// path to the resource folders
+std::string resource_path{};
 
 void quit(int status) {
   // free opengl resources
@@ -171,7 +173,7 @@ void update_uniform_locations() {
 void update_shader_programs() {
   try {
     // throws exception when compiling was unsuccessfull
-    GLuint new_program = shader_loader::program("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
+    GLuint new_program = shader_loader::program(resource_path + "shaders/simple.vert", resource_path + "shaders/simple.frag");
     // free old shader
     glDeleteProgram(simple_program);
     // save new shader
@@ -219,7 +221,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 // load geometry
 void load_model() {
-  mesh = model_loader::obj("../resources/models/triangle.obj", mesh::NORMAL);
+  mesh = model_loader::obj(resource_path + "models/triangle.obj", mesh::NORMAL);
 
   // generate vertex array object
   glGenVertexArrays(1, &model.vertex_AO);
@@ -277,7 +279,7 @@ void render(GLFWwindow* window) {
   glDrawElements(GL_TRIANGLES, mesh.indices.size(), mesh::INDEX.type, NULL);
 }
 
-int main(void) {
+int main(int argc, char* argv[]) {
 
   glfwSetErrorCallback(error_callback);
 
@@ -304,7 +306,18 @@ int main(void) {
   // activate error checking after each gl function call
   watch_gl_errors();
 
-  simple_program = shader_loader::program("../resources/shaders/simple.vert", "../resources/shaders/simple.frag");
+  //first argument is resource path
+  if (argc > 1) {
+    resource_path = argv[1];
+  }
+  // no resource path specified, use default
+  else {
+    std::string exe_path{argv[0]};
+	resource_path = exe_path.substr(0, exe_path.find_last_of("/\\"));
+	resource_path += "/../../resources/";
+  }
+
+  simple_program = shader_loader::program(resource_path + "shaders/simple.vert", resource_path + "shaders/simple.frag");
   // do before framebuffer_resize call as it requires the projection uniform location
   update_shader_programs();
 
