@@ -45,7 +45,7 @@ GLuint shader(std::string const& file_name, GLenum shader_type) {
     GLint log_size = 0;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_size);
 
-    char log_buffer[log_size];
+	GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
     glGetShaderInfoLog(shader, log_size, &log_size, log_buffer);
 
     // output errors
@@ -56,6 +56,7 @@ GLuint shader(std::string const& file_name, GLenum shader_type) {
     }
     // free broken shader
     glDeleteShader(shader);
+	free(log_buffer);
 
     throw std::logic_error(file_name);
   }

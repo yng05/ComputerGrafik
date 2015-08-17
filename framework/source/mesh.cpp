@@ -25,8 +25,8 @@ mesh::mesh()
 {}
 
 mesh::mesh(std::vector<float> const& databuff, attrib_flag_t contained_attributes, std::vector<unsigned> const& trianglebuff)
- :data{databuff}
- ,indices{trianglebuff}
+ :data(databuff)
+ ,indices(trianglebuff)
  ,offsets{}
  ,stride{0}
  ,vertex_num{0}

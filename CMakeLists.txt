@@ -22,13 +22,25 @@ endif()
 # glfw
 set(BUILD_SHARED_LIBS ${DYNAMIC_LINKING} CACHE BOOL "Build shared libraries" FORCE)
 
+
+#before adding libraries, define the output paths, MSVC automatically creates the build-type folders
+if(MSVC)
+  SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR})
+  SET(LIBRARY_OUTPUT_PATH	 ${PROJECT_BINARY_DIR})
+else()
+  SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+  SET(LIBRARY_OUTPUT_PATH	 ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+endif()
+
 # include glm
 include_directories(external/glm-0.9.6.3)
 
 # include stb_image
 include_directories(external/stb_image-2.0.6)
 # suppress warnings caused by stb_image which is compiled in texture_loader 
-set_source_files_properties(framework/source/texture_loader.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable")
+if(NOT MSVC)
+	set_source_files_properties(framework/source/texture_loader.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable")
+endif()
 
 # add tinyobjloader
 include_directories(external/tinyobjloader-aa07206)
