@@ -276,7 +276,7 @@ void render(GLFWwindow* window) {
 
   glBindVertexArray(model.vertex_AO);
   // draw bound vertex array as triangles using bound shader
-  glDrawElements(GL_TRIANGLES, mesh.indices.size(), mesh::INDEX.type, NULL);
+  glDrawElements(GL_TRIANGLES, GLsizei(mesh.indices.size()), mesh::INDEX.type, NULL);
 }
 
 int main(int argc, char* argv[]) {

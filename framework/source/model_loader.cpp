@@ -34,7 +34,7 @@ mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
   std::vector<float> vertex_data;
   std::vector<unsigned> triangles;
 
-  unsigned vertex_offset = 0;
+  GLuint vertex_offset = 0;
 
   for (auto& shape : shapes) {
     tinyobj::mesh_t& curr_mesh = shape.mesh;
@@ -79,7 +79,7 @@ mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
       triangles.push_back(vertex_offset + curr_mesh.indices[i]);
     }
 
-    vertex_offset += curr_mesh.positions.size() / 3;
+    vertex_offset += GLuint(curr_mesh.positions.size() / 3);
   }
 
   return mesh{vertex_data, attributes, triangles};

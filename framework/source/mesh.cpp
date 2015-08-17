@@ -24,7 +24,7 @@ mesh::mesh()
  ,vertex_num{0}
 {}
 
-mesh::mesh(std::vector<float> const& databuff, attrib_flag_t contained_attributes, std::vector<unsigned> const& trianglebuff)
+mesh::mesh(std::vector<GLfloat> const& databuff, attrib_flag_t contained_attributes, std::vector<GLuint> const& trianglebuff)
  :data(databuff)
  ,indices(trianglebuff)
  ,offsets{}

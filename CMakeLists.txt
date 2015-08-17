@@ -16,6 +16,7 @@ if(DYNAMIC_LINKING)
 else()
     set(OPTION_BUILD_STATIC ON CACHE BOOL "Build static libraries" FORCE)
     set(GLBINDING_STATIC ON CACHE BOOL "No help, variable specified on the command line." FORCE)
+	add_definitions(-DGLBINDING_STATIC)
     # stb_image
     add_definitions(-DSTB_IMAGE_STATIC)
 endif()    
@@ -74,20 +75,23 @@ target_link_libraries(OpenGLFramework glfw ${GLFW_LIBRARIES} glbinding)
 if(UNIX)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 elseif(MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "/D NDEBUG /MD /MP /O2")
-    set(CMAKE_CXX_FLAGS_DEBUG "/D_DEBUG /MDd /Zi")
+	set(CMAKE_CXX_FLAGS_RELEASE "/MD /O2")
+	set(CMAKE_CXX_FLAGS_DEBUG "/MDd /Zi")
 endif()
 
 # activate C++ 11
 if(NOT MSVC)
     add_definitions(-std=c++11)
-    # show warnings but ignore those caused by glm and stb_image
+    # show warnings but suppress those caused by glm
     add_definitions(-Wall -Wno-comment -Wno-strict-aliasing)
     # force linking  with c++11 lib
     if(APPLE)
         set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++0x")
         add_definitions(-stdlib=libc++)
     endif()
+else()
+    # build in parallel, show warnings and suppress one caused by glbinding
+    add_definitions(/MP /W3 /wd4251)
 endif()
 
 
