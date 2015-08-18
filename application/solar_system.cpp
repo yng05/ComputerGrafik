@@ -313,8 +313,8 @@ int main(int argc, char* argv[]) {
   // no resource path specified, use default
   else {
     std::string exe_path{argv[0]};
-	resource_path = exe_path.substr(0, exe_path.find_last_of("/\\"));
-	resource_path += "/../../resources/";
+    resource_path = exe_path.substr(0, exe_path.find_last_of("/\\"));
+    resource_path += "/../../resources/";
   }
 
   simple_program = shader_loader::program(resource_path + "shaders/simple.vert", resource_path + "shaders/simple.frag");

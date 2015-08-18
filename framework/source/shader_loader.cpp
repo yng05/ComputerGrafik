@@ -24,13 +24,25 @@ std::string read_file(std::string const& name) {
     throw std::invalid_argument(name);
   } 
 }
+// helper to get filename from path
+static std::string file_name(std::string const& file_path) {
+  return file_path.substr(file_path.find_last_of("/\\") + 1);
+}
 
-GLuint shader(std::string const& file_name, GLenum shader_type) {
+static void output_log(GLchar const* log_buffer, std::string const& prefix) {
+  std::string error{};
+  std::istringstream error_stream{log_buffer};
+  while(std::getline(error_stream, error)) {
+    std::cerr << prefix << " - " << error << std::endl;
+  }
+}
+
+GLuint shader(std::string const& file_path, GLenum shader_type) {
 
   GLuint shader = 0;
   shader = glCreateShader(shader_type);
 
-  std::string shader_source{read_file(file_name)};
+  std::string shader_source{read_file(file_path)};
   // glshadersource expects array of c-strings
   const char* shader_chars = shader_source.c_str();
   glShaderSource(shader, 1, &shader_chars, 0);
@@ -40,48 +52,61 @@ GLuint shader(std::string const& file_name, GLenum shader_type) {
   // check if compilation was successfull
   GLint success = 0;
   glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-
   if(success == 0) {
+    // get log length
     GLint log_size = 0;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_size);
-
-	GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
+    // get log
+    GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
     glGetShaderInfoLog(shader, log_size, &log_size, log_buffer);
-
     // output errors
-    std::string error{};
-    std::istringstream error_stream{log_buffer};
-    while(std::getline(error_stream, error)) {
-      std::cerr << file_name << " - " << error << std::endl;
-    }
+    output_log(log_buffer, file_name(file_path));
     // free broken shader
     glDeleteShader(shader);
-	free(log_buffer);
+    free(log_buffer);
 
-    throw std::logic_error(file_name);
+    throw std::logic_error("Compilation of " + file_path);
   }
 
   return shader;
 }
 
-GLuint program(std::string const& vertex_name, std::string const& fragment_name) {
+GLuint program(std::string const& vertex_path, std::string const& fragment_path) {
 
   GLuint program = glCreateProgram();
 
-  //load vert and frag shader
-  GLuint vertex_shader = shader(vertex_name, GL_VERTEX_SHADER);
-  GLuint fragment_shader = shader(fragment_name, GL_FRAGMENT_SHADER);
+  // load and compile vert and frag shader
+  GLuint vertex_shader = shader(vertex_path, GL_VERTEX_SHADER);
+  GLuint fragment_shader = shader(fragment_path, GL_FRAGMENT_SHADER);
 
-  //attach the different shader components to the shader program
+  // attach the shaders to the program
   glAttachShader(program, vertex_shader);
   glAttachShader(program, fragment_shader);
-  //and compile it
+  // link shaders
   glLinkProgram(program);
 
-  //program is linked, so we can detach compiled shaders again
+  // check if linking was successfull
+  GLint success = 0;
+  glGetProgramiv(program, GL_LINK_STATUS, &success);
+  if(success == 0) {
+    // get log length
+    GLint log_size = 0;
+    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
+    // get log
+    GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
+    glGetProgramInfoLog(program, log_size, &log_size, log_buffer);
+    // output errors
+    output_log(log_buffer, file_name(vertex_path) + " & " + file_name(fragment_path));
+    // free broken program
+    glDeleteProgram(program);
+    free(log_buffer);
+
+    throw std::logic_error("Linking of " + vertex_path + " & " + fragment_path);
+  }
+  // detach shaders
   glDetachShader(program, vertex_shader);
   glDetachShader(program, fragment_shader);
-  // free objects after linking
+  // and free them
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
 

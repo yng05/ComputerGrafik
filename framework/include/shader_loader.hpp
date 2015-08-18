@@ -6,7 +6,7 @@
 using namespace gl;
 
 namespace shader_loader {
-  GLuint shader(std::string const& file_name, GLenum shader_type);
+  GLuint shader(std::string const& file_path, GLenum shader_type);
   
   GLuint program(std::string const& vertex_name, std::string const& fragment_name);
 };
