@@ -1,7 +1,7 @@
 #include "shader_loader.hpp"
+#include "utils.hpp"
 
 #include <iostream>
-#include <sstream>
 #include <fstream>
 
 namespace shader_loader {
@@ -24,18 +24,7 @@ std::string read_file(std::string const& name) {
     throw std::invalid_argument(name);
   } 
 }
-// helper to get filename from path
-static std::string file_name(std::string const& file_path) {
-  return file_path.substr(file_path.find_last_of("/\\") + 1);
-}
 
-static void output_log(GLchar const* log_buffer, std::string const& prefix) {
-  std::string error{};
-  std::istringstream error_stream{log_buffer};
-  while(std::getline(error_stream, error)) {
-    std::cerr << prefix << " - " << error << std::endl;
-  }
-}
 
 GLuint shader(std::string const& file_path, GLenum shader_type) {
 
@@ -60,7 +49,7 @@ GLuint shader(std::string const& file_path, GLenum shader_type) {
     GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
     glGetShaderInfoLog(shader, log_size, &log_size, log_buffer);
     // output errors
-    output_log(log_buffer, file_name(file_path));
+    utils::output_log(log_buffer, utils::file_name(file_path));
     // free broken shader
     glDeleteShader(shader);
     free(log_buffer);
@@ -96,7 +85,7 @@ GLuint program(std::string const& vertex_path, std::string const& fragment_path)
     GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
     glGetProgramInfoLog(program, log_size, &log_size, log_buffer);
     // output errors
-    output_log(log_buffer, file_name(vertex_path) + " & " + file_name(fragment_path));
+    utils::output_log(log_buffer, utils::file_name(vertex_path) + " & " + utils::file_name(fragment_path));
     // free broken program
     glDeleteProgram(program);
     free(log_buffer);

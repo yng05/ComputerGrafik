@@ -2,10 +2,6 @@
 #include <glbinding/gl/gl.h>
 // load glbinding extensions
 #include <glbinding/Binding.h>
-// load meta info extension
-#include <glbinding/Meta.h>
-// load callback support
-#include <glbinding/callbacks.h>
 
 //dont load gl bindings from glfw
 #define GLFW_INCLUDE_NONE
@@ -26,10 +22,11 @@
 
 #include "shader_loader.hpp"
 #include "model_loader.hpp"
+#include "texture_loader.hpp"
+#include "utils.hpp"
 
 // use gl definitions from glbinding 
 using namespace gl;
-using glbinding::Meta;
 
 // verticel field of view of camera
 const float camera_fov = glm::radians(60.0f);
@@ -76,64 +73,6 @@ void quit(int status) {
   glfwTerminate();
 
   exit(status);
-}
-
-// output current error
-bool query_gl_error() {
-  bool error_occured = false;
-
-  GLenum error = glGetError();
-  while(error != GL_NO_ERROR) {
-    std::cerr << "OpenGL Error: " << Meta::getString(error) << std::endl;
-    error = glGetError();
-
-    error_occured = true;
-  }
-
-  return error_occured;
-}
-
-// check after every function if error was caused
-void watch_gl_errors(bool activate = true) {
-  if(activate) {
-    // add callback after each function call
-    glbinding::setCallbackMaskExcept(glbinding::CallbackMask::After | glbinding::CallbackMask::ParametersAndReturnValue, { "glGetError" });
-    glbinding::setAfterCallback(
-      [](glbinding::FunctionCall const& call) {
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-          // print name
-          std::cerr <<  "OpenGL Error: " << call.function->name() << "(";
-          // parameters
-          for (unsigned i = 0; i < call.parameters.size(); ++i)
-          {
-            std::cerr << call.parameters[i]->asString();
-            if (i < call.parameters.size() - 1)
-              std::cerr << ", ";
-          }
-          std::cerr << ")";
-          // return value
-          if(call.returnValue) {
-            std::cerr << " -> " << call.returnValue->asString();
-          }
-          // error
-          std::cerr  << " - " << Meta::getString(error) << std::endl;
-
-          quit(EXIT_FAILURE);
-        }
-      }
-    );
-  }
-  else {
-    glbinding::setCallbackMask(glbinding::CallbackMask::None);
-  }
-}
-
-GLint get_bound_VAO() {
-  GLint array = -1;
-  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &array);
-
-  return array;
 }
 
 // update viewport and field of view
@@ -193,11 +132,6 @@ void update_shader_programs() {
     // dont crash, allow another try
   }
 
-}
-
-// GLSLS error callback
-void error_callback(int error, const char* description) {
-  std::cerr << "GLSL Error: "<< description << std::endl;
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -275,13 +209,14 @@ void render(GLFWwindow* window) {
   glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
   glBindVertexArray(model.vertex_AO);
+  utils::validate_program(simple_program);
   // draw bound vertex array as triangles using bound shader
   glDrawElements(GL_TRIANGLES, GLsizei(mesh.indices.size()), mesh::INDEX.type, NULL);
 }
 
 int main(int argc, char* argv[]) {
 
-  glfwSetErrorCallback(error_callback);
+  glfwSetErrorCallback(utils::glsl_error);
 
   if(!glfwInit()) {
     exit(EXIT_FAILURE);  
@@ -304,7 +239,7 @@ int main(int argc, char* argv[]) {
   glbinding::Binding::initialize();
 
   // activate error checking after each gl function call
-  watch_gl_errors();
+  utils::watch_gl_errors();
 
   //first argument is resource path
   if (argc > 1) {
