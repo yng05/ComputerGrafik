@@ -28,13 +28,18 @@ namespace texture_loader {
     GLuint texture = 0;
     glGenTextures(1, &texture);
     // bind new tetxure handle to current unit for configuration
-    glBindTexture(GL_TEXTURE_2D, texture);
+    GLenum target = GL_TEXTURE_2D;
+    if(height == 1) {
+      target = GL_TEXTURE_1D;
+    }
+
+    glBindTexture(target, texture);
     // if coordinate is outside texture, use border color
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLint(GL_CLAMP_TO_EDGE));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GLint(GL_CLAMP_TO_EDGE));
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
     //linear interpolation if texel is smaller/bigger than fragment pixel 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GLint(GL_LINEAR));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GLint(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GLint(GL_LINEAR));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GLint(GL_LINEAR));
 
     // determine format of image data, internal format should be sized
     GLenum source_format = GL_NONE;
@@ -59,7 +64,12 @@ namespace texture_loader {
       throw std::logic_error("stb_image: misinterpreted data, incorrect format");
     }
     // define & upload texture data
-    glTexImage2D(GL_TEXTURE_2D, 0, GLint(internal_format), width, height, 0, source_format, GL_UNSIGNED_BYTE, data_ptr);
+    if(target == GL_TEXTURE_2D) {
+      glTexImage2D(target, 0, GLint(internal_format), width, height, 0, source_format, GL_UNSIGNED_BYTE, data_ptr);
+    }
+    else {
+      glTexImage1D(target, 0, GLint(internal_format), width, 0, source_format, GL_UNSIGNED_BYTE, data_ptr);
+    }
 
     stbi_image_free(data_ptr);
     return texture;

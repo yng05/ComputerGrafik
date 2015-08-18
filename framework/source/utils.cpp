@@ -108,4 +108,28 @@ void output_log(GLchar const* log_buffer, std::string const& prefix) {
   }
 }
 
+void print_bound_textures() {
+  GLint id1, id2, id3, active_unit, texture_units = 0;
+  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_unit);
+  std::cout << "Active texture unit: " << active_unit - GLint(GL_TEXTURE0) << std::endl;
+
+  glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &texture_units);
+
+  for(GLint i = 0; i < texture_units; ++i) {
+    glActiveTexture(GL_TEXTURE0 + i);
+    glGetIntegerv(GL_TEXTURE_BINDING_3D, &id3);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &id2);
+    glGetIntegerv(GL_TEXTURE_BINDING_1D, &id1);
+    if(id1 != 0 || id2 != 0 || id3 != 0) {
+      std::cout <<"Texure unit " << i << " - ";
+      if(id1 != 0) std::cout << "1D: " << id1 << ", ";
+      if(id2 != 0) std::cout << "2D: " << id2 << ", ";
+      if(id3 != 0) std::cout << "3D: " << id3;
+      std::cout << std::endl;
+    }
+  }
+  // reactivate previously active unit
+  glActiveTexture(GLenum(active_unit));
+}
+
 };
