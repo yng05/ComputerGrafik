@@ -1,8 +1,7 @@
 #include "utils.hpp"
 
-#include <glbinding/gl/gl.h>
-// load glbinding extensions
-#include <glbinding/Binding.h>
+// load glbinding function type
+#include <glbinding/Function.h>
 // load meta info extension
 #include <glbinding/Meta.h>
 // load callback support
@@ -10,6 +9,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 using glbinding::Meta;
 
@@ -130,6 +130,24 @@ void print_bound_textures() {
   }
   // reactivate previously active unit
   glActiveTexture(GLenum(active_unit));
+}
+
+std::string read_file(std::string const& name) {
+  std::ifstream file_in{name};
+  if(file_in) {
+    std::string contents;
+    file_in.seekg(0, std::ios::end);
+    contents.resize(file_in.tellg());
+    file_in.seekg(0, std::ios::beg);
+    file_in.read(&contents[0], contents.size());
+    file_in.close();
+    return(contents);
+  }
+  else {
+    std::cerr << "File \'" << name << "\' not found" << std::endl;
+    
+    throw std::invalid_argument(name);
+  } 
 }
 
 };
