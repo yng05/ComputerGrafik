@@ -1,12 +1,10 @@
 #ifndef TEXTURE_LOADER_HPP
 #define TEXTURE_LOADER_HPP
 
-#include <glbinding/gl/gl.h>
-
-using namespace gl;
+#include "texture.hpp"
 
 namespace texture_loader {
-  GLuint texture(std::string const& file_name);
+  texture file(std::string const& file_name);
 };
 
 #endif

@@ -14,6 +14,54 @@
 using glbinding::Meta;
 
 namespace utils {
+
+GLuint texture_object(texture const& tex) {
+  GLuint texture_object = 0;
+  glGenTextures(1, &texture_object);
+
+  // bind new texture handle to current unit for configuration
+  glBindTexture(tex.target, texture_object);
+  // if coordinate is outside texture, use border color
+  glTexParameteri(tex.target, GL_TEXTURE_WRAP_S, GLint(GL_CLAMP_TO_EDGE));
+  //linear interpolation if texel is smaller/bigger than fragment pixel 
+  glTexParameteri(tex.target, GL_TEXTURE_MIN_FILTER, GLint(GL_LINEAR));
+  glTexParameteri(tex.target, GL_TEXTURE_MAG_FILTER, GLint(GL_LINEAR));
+
+  // determine format of image data, internal format should be sized
+  GLenum internal_format = GL_NONE;
+  if (tex.format == GL_RED) {
+    internal_format = GL_R8;
+  }
+  else if (tex.format == GL_RG) {
+    internal_format = GL_RG8;
+  }
+  else if (tex.format == GL_RGB) {
+    internal_format = GL_RGB8;
+  }
+  else if (tex.format == GL_RGBA) {
+    internal_format = GL_RGBA8;
+  }
+
+  // define & upload texture data
+  if (tex.target == GL_TEXTURE_1D){
+    glTexImage1D(tex.target, 0, GLint(internal_format), tex.width, 0, tex.format, tex.type, &tex.data[0]);
+  }
+  else if (tex.target == GL_TEXTURE_2D) {
+    glTexParameteri(tex.target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
+    glTexImage2D(tex.target, 0, GLint(internal_format), tex.width, tex.height, 0, tex.format, tex.type, &tex.data[0]);
+  }
+  else if (tex.target == GL_TEXTURE_3D){
+    glTexParameteri(tex.target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
+    glTexParameteri(tex.target, GL_TEXTURE_WRAP_R, GLint(GL_CLAMP_TO_EDGE));
+    glTexImage3D(tex.target, 0, GLint(internal_format), tex.width, tex.height, tex.depth, 0, tex.format, tex.type, &tex.data[0]);
+  }
+  else {
+    throw std::logic_error("Unsupported Format " + Meta::getString(tex.target));
+  }
+
+  return texture_object;
+}
+
 bool query_gl_error() {
   bool error_occured = false;
 

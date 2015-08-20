@@ -1,11 +1,15 @@
 #ifndef UTILS_HPP
 #define UTISL_HPP
 
+#include "texture.hpp"
+
 #include <glbinding/gl/gl.h>
 // use gl definitions from glbinding 
 using namespace gl;
 
 namespace utils {
+  // generate texture object form texture struct
+  GLuint texture_object(texture const& tex);
   // output current error
   bool query_gl_error();
   // check after every function if error was caused
