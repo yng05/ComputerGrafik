@@ -29,31 +29,31 @@ GLuint texture_object(texture const& tex) {
 
   // determine format of image data, internal format should be sized
   GLenum internal_format = GL_NONE;
-  if (tex.format == GL_RED) {
+  if (tex.channels == GL_RED) {
     internal_format = GL_R8;
   }
-  else if (tex.format == GL_RG) {
+  else if (tex.channels == GL_RG) {
     internal_format = GL_RG8;
   }
-  else if (tex.format == GL_RGB) {
+  else if (tex.channels == GL_RGB) {
     internal_format = GL_RGB8;
   }
-  else if (tex.format == GL_RGBA) {
+  else if (tex.channels == GL_RGBA) {
     internal_format = GL_RGBA8;
   }
 
   // define & upload texture data
   if (tex.target == GL_TEXTURE_1D){
-    glTexImage1D(tex.target, 0, GLint(internal_format), tex.width, 0, tex.format, tex.type, &tex.data[0]);
+    glTexImage1D(tex.target, 0, GLint(internal_format), tex.width, 0, tex.channels, tex.channel_type, &tex.data[0]);
   }
   else if (tex.target == GL_TEXTURE_2D) {
     glTexParameteri(tex.target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
-    glTexImage2D(tex.target, 0, GLint(internal_format), tex.width, tex.height, 0, tex.format, tex.type, &tex.data[0]);
+    glTexImage2D(tex.target, 0, GLint(internal_format), tex.width, tex.height, 0, tex.channels, tex.channel_type, &tex.data[0]);
   }
   else if (tex.target == GL_TEXTURE_3D){
     glTexParameteri(tex.target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
     glTexParameteri(tex.target, GL_TEXTURE_WRAP_R, GLint(GL_CLAMP_TO_EDGE));
-    glTexImage3D(tex.target, 0, GLint(internal_format), tex.width, tex.height, tex.depth, 0, tex.format, tex.type, &tex.data[0]);
+    glTexImage3D(tex.target, 0, GLint(internal_format), tex.width, tex.height, tex.depth, 0, tex.channels, tex.channel_type, &tex.data[0]);
   }
   else {
     throw std::logic_error("Unsupported Format " + Meta::getString(tex.target));
@@ -169,7 +169,7 @@ void print_bound_textures() {
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &id2);
     glGetIntegerv(GL_TEXTURE_BINDING_1D, &id1);
     if(id1 != 0 || id2 != 0 || id3 != 0) {
-      std::cout <<"Texure unit " << i << " - ";
+      std::cout <<"Texture unit " << i << " - ";
       if(id1 != 0) std::cout << "1D: " << id1 << ", ";
       if(id2 != 0) std::cout << "2D: " << id2 << ", ";
       if(id3 != 0) std::cout << "3D: " << id3;
