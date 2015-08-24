@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include "texture.hpp"
 
 // load glbinding function type
 #include <glbinding/Function.h>
@@ -42,24 +43,58 @@ GLuint texture_object(texture const& tex) {
     internal_format = GL_RGBA8;
   }
 
+  // create blank texture if struct contains no pixel data
+  GLvoid const* data_ptr = nullptr;
+  if (!tex.data.empty()) {
+    data_ptr = &tex.data[0];
+  }
+
   // define & upload texture data
   if (tex.target == GL_TEXTURE_1D){
-    glTexImage1D(tex.target, 0, GLint(internal_format), tex.width, 0, tex.channels, tex.channel_type, &tex.data[0]);
+    glTexImage1D(tex.target, 0, GLint(internal_format), tex.width, 0, tex.channels, tex.channel_type, data_ptr);
   }
   else if (tex.target == GL_TEXTURE_2D) {
     glTexParameteri(tex.target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
-    glTexImage2D(tex.target, 0, GLint(internal_format), tex.width, tex.height, 0, tex.channels, tex.channel_type, &tex.data[0]);
+    glTexImage2D(tex.target, 0, GLint(internal_format), tex.width, tex.height, 0, tex.channels, tex.channel_type, data_ptr);
   }
   else if (tex.target == GL_TEXTURE_3D){
     glTexParameteri(tex.target, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
     glTexParameteri(tex.target, GL_TEXTURE_WRAP_R, GLint(GL_CLAMP_TO_EDGE));
-    glTexImage3D(tex.target, 0, GLint(internal_format), tex.width, tex.height, tex.depth, 0, tex.channels, tex.channel_type, &tex.data[0]);
+    glTexImage3D(tex.target, 0, GLint(internal_format), tex.width, tex.height, tex.depth, 0, tex.channels, tex.channel_type, data_ptr);
   }
   else {
     throw std::logic_error("Unsupported Format " + Meta::getString(tex.target));
   }
 
   return texture_object;
+}
+
+void print_bound_textures() {
+  GLint id1, id2, id3, active_unit, texture_units = 0;
+  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_unit);
+  std::cout << "Active texture unit: " << active_unit - GLint(GL_TEXTURE0) << std::endl;
+
+  glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &texture_units);
+
+  for(GLint i = 0; i < texture_units; ++i) {
+    glActiveTexture(GL_TEXTURE0 + i);
+    glGetIntegerv(GL_TEXTURE_BINDING_3D, &id3);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &id2);
+    glGetIntegerv(GL_TEXTURE_BINDING_1D, &id1);
+    if(id1 != 0 || id2 != 0 || id3 != 0) {
+      std::cout <<"Texture unit " << i << " - ";
+      if(id1 != 0) std::cout << "1D: " << id1 << ", ";
+      if(id2 != 0) std::cout << "2D: " << id2 << ", ";
+      if(id3 != 0) std::cout << "3D: " << id3;
+      std::cout << std::endl;
+    }
+  }
+  // reactivate previously active unit
+  glActiveTexture(GLenum(active_unit));
+}
+
+void glsl_error(int error, const char* description) {
+  std::cerr << "GLSL Error " << error << " : "<< description << std::endl;
 }
 
 bool query_gl_error() {
@@ -140,10 +175,6 @@ GLint get_bound_VAO() {
   return array;
 }
 
-void glsl_error(int error, const char* description) {
-  std::cerr << "GLSL Error " << error << " : "<< description << std::endl;
-}
-
 std::string file_name(std::string const& file_path) {
   return file_path.substr(file_path.find_last_of("/\\") + 1);
 }
@@ -154,30 +185,6 @@ void output_log(GLchar const* log_buffer, std::string const& prefix) {
   while(std::getline(error_stream, error)) {
     std::cerr << prefix << " - " << error << std::endl;
   }
-}
-
-void print_bound_textures() {
-  GLint id1, id2, id3, active_unit, texture_units = 0;
-  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_unit);
-  std::cout << "Active texture unit: " << active_unit - GLint(GL_TEXTURE0) << std::endl;
-
-  glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &texture_units);
-
-  for(GLint i = 0; i < texture_units; ++i) {
-    glActiveTexture(GL_TEXTURE0 + i);
-    glGetIntegerv(GL_TEXTURE_BINDING_3D, &id3);
-    glGetIntegerv(GL_TEXTURE_BINDING_2D, &id2);
-    glGetIntegerv(GL_TEXTURE_BINDING_1D, &id1);
-    if(id1 != 0 || id2 != 0 || id3 != 0) {
-      std::cout <<"Texture unit " << i << " - ";
-      if(id1 != 0) std::cout << "1D: " << id1 << ", ";
-      if(id2 != 0) std::cout << "2D: " << id2 << ", ";
-      if(id3 != 0) std::cout << "3D: " << id3;
-      std::cout << std::endl;
-    }
-  }
-  // reactivate previously active unit
-  glActiveTexture(GLenum(active_unit));
 }
 
 std::string read_file(std::string const& name) {
