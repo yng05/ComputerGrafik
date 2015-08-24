@@ -14,16 +14,13 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// load tinyobjloader
-#include <tiny_obj_loader.h>
-
-#include <stdlib.h>
-#include <iostream>
-
 #include "shader_loader.hpp"
 #include "model_loader.hpp"
 #include "texture_loader.hpp"
 #include "utils.hpp"
+
+#include <cstdlib>
+#include <iostream>
 
 // use gl definitions from glbinding 
 using namespace gl;
@@ -42,14 +39,14 @@ unsigned frames_per_second = 0;
 // the main shader program
 GLuint simple_program = 0;
 // cpu representation of model
-mesh mesh{};
+model planet_model{};
 // holds gpu representation of model
-struct geometry {
+struct model_object {
   GLuint vertex_AO = 0;
   GLuint vertex_BO = 0;
   GLuint element_BO = 0;
 };
-geometry model;
+model_object planet_object;
 // camera matrices
 glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
 glm::mat4 camera_projection{};
@@ -64,15 +61,15 @@ std::string resource_path{};
 void quit(int status) {
   // free opengl resources
   glDeleteProgram(simple_program);
-  glDeleteBuffers(1, &model.vertex_BO);
-  glDeleteVertexArrays(1, &model.element_BO);
-  glDeleteVertexArrays(1, &model.vertex_AO);
+  glDeleteBuffers(1, &planet_object.vertex_BO);
+  glDeleteVertexArrays(1, &planet_object.element_BO);
+  glDeleteVertexArrays(1, &planet_object.vertex_AO);
 
   // free glfw resources
   glfwDestroyWindow(window);
   glfwTerminate();
 
-  exit(status);
+  std::exit(status);
 }
 
 // update viewport and field of view
@@ -153,37 +150,37 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   }
 }
 
-// load geometry
+// load model
 void load_model() {
-  mesh = model_loader::obj(resource_path + "models/triangle.obj", mesh::NORMAL);
+  planet_model = model_loader::obj(resource_path + "models/triangle.obj", model::NORMAL);
 
   // generate vertex array object
-  glGenVertexArrays(1, &model.vertex_AO);
+  glGenVertexArrays(1, &planet_object.vertex_AO);
   // bind the array for attaching buffers
-  glBindVertexArray(model.vertex_AO);
+  glBindVertexArray(planet_object.vertex_AO);
 
   // generate generic buffer
-  glGenBuffers(1, &model.vertex_BO);
+  glGenBuffers(1, &planet_object.vertex_BO);
   // bind this as an vertex array buffer containing all attributes
-  glBindBuffer(GL_ARRAY_BUFFER, model.vertex_BO);
+  glBindBuffer(GL_ARRAY_BUFFER, planet_object.vertex_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * mesh.data.size(), &mesh.data[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * planet_model.data.size(), &planet_model.data[0], GL_STATIC_DRAW);
 
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(0, mesh::POSITION.components, mesh::POSITION.type, GL_FALSE, mesh.stride, mesh.offsets[mesh::POSITION]);
+  glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::POSITION]);
   // activate second attribute on gpu
   glEnableVertexAttribArray(1);
   // second attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(1, mesh::NORMAL.components, mesh::NORMAL.type, GL_FALSE, mesh.stride, mesh.offsets[mesh::NORMAL]);
+  glVertexAttribPointer(1, model::NORMAL.components, model::NORMAL.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::NORMAL]);
 
    // generate generic buffer
-  glGenBuffers(1, &model.element_BO);
+  glGenBuffers(1, &planet_object.element_BO);
   // bind this as an vertex array buffer containing all attributes
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.element_BO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, planet_object.element_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh::INDEX.size * mesh.indices.size(), &mesh.indices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, model::INDEX.size * planet_model.indices.size(), &planet_model.indices[0], GL_STATIC_DRAW);
 }
 
 // calculate fps and show in window title
@@ -200,7 +197,7 @@ void show_fps() {
   }
 }
 
-// render geometry
+// render model
 void render(GLFWwindow* window) {
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
@@ -208,10 +205,10 @@ void render(GLFWwindow* window) {
   glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
   glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
-  glBindVertexArray(model.vertex_AO);
+  glBindVertexArray(planet_object.vertex_AO);
   utils::validate_program(simple_program);
   // draw bound vertex array as triangles using bound shader
-  glDrawElements(GL_TRIANGLES, GLsizei(mesh.indices.size()), mesh::INDEX.type, NULL);
+  glDrawElements(GL_TRIANGLES, GLsizei(planet_model.indices.size()), model::INDEX.type, NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -219,14 +216,14 @@ int main(int argc, char* argv[]) {
   glfwSetErrorCallback(utils::glsl_error);
 
   if(!glfwInit()) {
-    exit(EXIT_FAILURE);  
+    std::exit(EXIT_FAILURE);  
   }
 
   window = glfwCreateWindow(window_width, window_height, "OpenGL Framework", NULL, NULL);
 
   if(!window) {
       glfwTerminate();
-      exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE);
   }
   // use the windows context
   glfwMakeContextCurrent(window);

@@ -1,20 +1,19 @@
-#ifndef MESH_HPP
-#define MESH_HPP
+#ifndef MODEL_HPP
+#define MODEL_HPP
 
 #include <glbinding/gl/gl.h>
 
-#include <cstdint>
 #include <map>
 #include <vector>
 // use gl definitions from glbinding 
 using namespace gl;
 
 // holds vertex information and triangle indices
-struct mesh {
+struct model {
 
   //flag type to combine attributes
   typedef int attrib_flag_t;
-  // type holding info about a vertex/mesh attribute
+  // type holding info about a vertex/model attribute
   struct attribute {
 
     attribute(attrib_flag_t f, GLsizei s, GLsizei c, GLenum t)
@@ -52,15 +51,15 @@ struct mesh {
   // is not a vertex attribute, so not stored in VERTEX_ATTRIBS
   static attribute const  INDEX;
   
-  mesh();
-  mesh(std::vector<GLfloat> const& databuff, attrib_flag_t attribs, std::vector<GLuint> const& trianglebuff = std::vector<GLuint>{});
+  model();
+  model(std::vector<GLfloat> const& databuff, attrib_flag_t attribs, std::vector<GLuint> const& trianglebuff = std::vector<GLuint>{});
 
   std::vector<GLfloat> data;
   std::vector<GLuint> indices;
   // byte offsets of individual element attributes
   std::map<attrib_flag_t, GLvoid*> offsets;
   // size of one vertex element in bytes
-  GLsizei stride;
+  GLsizei vertex_bytes;
   std::size_t vertex_num;
 };
 

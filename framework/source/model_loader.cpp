@@ -9,7 +9,7 @@
 
 namespace model_loader {
 
-mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
+model obj(std::string const& name, model::attrib_flag_t import_attribs){
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
 
@@ -24,11 +24,11 @@ mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
     }
   }
 
-  mesh::attrib_flag_t attributes{mesh::POSITION | import_attribs};
+  model::attrib_flag_t attributes{model::POSITION | import_attribs};
 
-  if(import_attribs & mesh::TANGENT) {
+  if(import_attribs & model::TANGENT) {
     // create tangents and bitangents?
-    throw std::invalid_argument("Attribute nr. " + std::to_string(mesh::TANGENT) + "not supported");
+    throw std::invalid_argument("Attribute nr. " + std::to_string(model::TANGENT) + "not supported");
   }
 
   std::vector<float> vertex_data;
@@ -39,7 +39,7 @@ mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
   for (auto& shape : shapes) {
     tinyobj::mesh_t& curr_mesh = shape.mesh;
     
-    bool has_normals = import_attribs & mesh::NORMAL;
+    bool has_normals = import_attribs & model::NORMAL;
     if(has_normals) {
       // generate normals if necessary
       if (curr_mesh.normals.empty()) {
@@ -47,11 +47,11 @@ mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
       }
     }
 
-    bool has_uvs = import_attribs & mesh::TEXCOORD;
+    bool has_uvs = import_attribs & model::TEXCOORD;
     if(has_uvs) {
       if (curr_mesh.texcoords.empty()) {
         has_uvs = false;
-        attributes ^= mesh::TEXCOORD;
+        attributes ^= model::TEXCOORD;
         std::cerr << "Shape has no texcoords" << std::endl;
       }
     }
@@ -82,31 +82,31 @@ mesh obj(std::string const& name, mesh::attrib_flag_t import_attribs){
     vertex_offset += GLuint(curr_mesh.positions.size() / 3);
   }
 
-  return mesh{vertex_data, attributes, triangles};
+  return model{vertex_data, attributes, triangles};
 }
 
-void generate_normals(tinyobj::mesh_t& mesh) {
-  std::vector<glm::vec3> positions(mesh.positions.size() / 3);
+void generate_normals(tinyobj::mesh_t& model) {
+  std::vector<glm::vec3> positions(model.positions.size() / 3);
 
-  for (unsigned i = 0; i < mesh.positions.size(); i+=3) {
-    positions[i / 3] = glm::vec3{mesh.positions[i], mesh.positions[i + 1], mesh.positions[i + 2]};
+  for (unsigned i = 0; i < model.positions.size(); i+=3) {
+    positions[i / 3] = glm::vec3{model.positions[i], model.positions[i + 1], model.positions[i + 2]};
   }
 
-  std::vector<glm::vec3> normals(mesh.positions.size() / 3, glm::vec3{0.0f});
-  for (unsigned i = 0; i < mesh.indices.size(); i+=3) {
-    glm::vec3 normal = glm::cross(positions[mesh.indices[i+1]] - positions[mesh.indices[i]], positions[mesh.indices[i+2]] - positions[mesh.indices[i]]);
+  std::vector<glm::vec3> normals(model.positions.size() / 3, glm::vec3{0.0f});
+  for (unsigned i = 0; i < model.indices.size(); i+=3) {
+    glm::vec3 normal = glm::cross(positions[model.indices[i+1]] - positions[model.indices[i]], positions[model.indices[i+2]] - positions[model.indices[i]]);
 
-    normals[mesh.indices[i]] += normal;
-    normals[mesh.indices[i+1]] += normal;
-    normals[mesh.indices[i+2]] += normal;
+    normals[model.indices[i]] += normal;
+    normals[model.indices[i+1]] += normal;
+    normals[model.indices[i+2]] += normal;
   }
 
-  mesh.normals.reserve(mesh.positions.size());
+  model.normals.reserve(model.positions.size());
   for (unsigned i = 0; i < normals.size(); ++i) {
     glm::vec3 normal = glm::normalize(normals[i]);
-    mesh.normals[i * 3] = normal[0];
-    mesh.normals[i * 3 + 1] = normal[1];
-    mesh.normals[i * 3 + 2] = normal[2];
+    model.normals[i * 3] = normal[0];
+    model.normals[i * 3 + 1] = normal[1];
+    model.normals[i * 3 + 2] = normal[2];
   }
 }
 

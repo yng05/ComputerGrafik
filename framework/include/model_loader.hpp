@@ -1,14 +1,15 @@
 #ifndef MODEL_LOADER_HPP
 #define MODEL_LOADER_HPP
 
-#include "mesh.hpp"
+#include "model.hpp"
+
 #include "tiny_obj_loader.h"
 
 namespace model_loader {
 
-mesh obj(std::string const& path, mesh::attrib_flag_t import_attribs = mesh::POSITION);
+model obj(std::string const& path, model::attrib_flag_t import_attribs = model::POSITION);
 
-void generate_normals(tinyobj::mesh_t& mesh);
+void generate_normals(tinyobj::mesh_t& model);
 
 }
 
