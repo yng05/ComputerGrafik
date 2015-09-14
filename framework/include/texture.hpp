@@ -18,23 +18,15 @@ struct texture {
    ,channel_type{GL_NONE}
   {}
 
-  texture(std::vector<uint8_t> dat, GLenum t, GLenum c, GLenum ty, GLsizei w, GLsizei h = 0, GLsizei d = 0)
+  texture(std::vector<uint8_t> dat, GLenum t, GLenum c, GLenum ty, GLsizei w, GLsizei h = 1, GLsizei d = 1)
    :data(dat)
    ,width{w}
    ,height{h}
    ,depth{d}
-   ,target{GL_TEXTURE_2D}
+   ,target{t}
    ,channels{c}
    ,channel_type{ty}
-  {
-    // fit target to input dimensions
-    if (height < 2) {
-      target = GL_TEXTURE_1D;
-    }
-    else if (depth > 1) {
-      target = GL_TEXTURE_3D;
-    }
-  }
+  {}
 
   std::vector<uint8_t> data;
   GLsizei width;
