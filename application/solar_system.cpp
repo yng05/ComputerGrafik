@@ -128,7 +128,6 @@ void update_shader_programs() {
   catch(std::exception& e) {
     // dont crash, allow another try
   }
-
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -140,12 +139,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   }
   else if(key == GLFW_KEY_W && action == GLFW_PRESS) {
     camera_view = glm::translate(camera_view, glm::vec3{0.0f, 0.0f, -0.1f});
-    std::cout << "w" << std::endl;
     update_camera();
   }
   else if(key == GLFW_KEY_S && action == GLFW_PRESS) {
     camera_view = glm::translate(camera_view, glm::vec3{0.0f, 0.0f, 0.1f});
-    std::cout << "s" << std::endl;
     update_camera();
   }
 }
@@ -198,7 +195,7 @@ void show_fps() {
 }
 
 // render model
-void render(GLFWwindow* window) {
+void render() {
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
   // extra matrix for normal transformation to keep them orthogonal to surface
@@ -219,11 +216,18 @@ int main(int argc, char* argv[]) {
     std::exit(EXIT_FAILURE);  
   }
 
+#ifdef __APPLE__
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, true);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
+
   window = glfwCreateWindow(window_width, window_height, "OpenGL Framework", NULL, NULL);
 
   if(!window) {
-      glfwTerminate();
-      std::exit(EXIT_FAILURE);
+    glfwTerminate();
+    std::exit(EXIT_FAILURE);
   }
   // use the windows context
   glfwMakeContextCurrent(window);
@@ -269,7 +273,7 @@ int main(int argc, char* argv[]) {
   while(!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    render(window);
+    render();
 
     glfwSwapBuffers(window);
     glfwPollEvents();
