@@ -1,4 +1,4 @@
-#version 330
+#version 150
 
 in  vec4 pass_Normal;
 out vec4 out_Color;

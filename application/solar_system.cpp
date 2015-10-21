@@ -25,7 +25,7 @@
 // use gl definitions from glbinding 
 using namespace gl;
 
-// verticel field of view of camera
+// vertical field of view of camera
 const float camera_fov = glm::radians(60.0f);
 // initial window dimensions
 const unsigned window_width = 640;
@@ -147,9 +147,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   }
 }
 
+void initialize_shaders() {
+  // load shader program
+  simple_program = shader_loader::program(resource_path + "shaders/simple.vert", resource_path + "shaders/simple.frag");
+  // reload uniform locations
+  update_shader_programs();
+}
+
 // load model
-void load_model() {
-  planet_model = model_loader::obj(resource_path + "models/triangle.obj", model::NORMAL);
+void initialize_geometry() {
+  planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL);
 
   // generate vertex array object
   glGenVertexArrays(1, &planet_object.vertex_AO);
@@ -161,7 +168,7 @@ void load_model() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ARRAY_BUFFER, planet_object.vertex_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * planet_model.data.size(), &planet_model.data[0], GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * planet_model.data.size(), planet_model.data.data(), GL_STATIC_DRAW);
 
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
@@ -177,7 +184,7 @@ void load_model() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, planet_object.element_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, model::INDEX.size * planet_model.indices.size(), &planet_model.indices[0], GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, model::INDEX.size * planet_model.indices.size(), planet_model.indices.data(), GL_STATIC_DRAW);
 }
 
 // calculate fps and show in window title
@@ -216,6 +223,7 @@ int main(int argc, char* argv[]) {
     std::exit(EXIT_FAILURE);  
   }
 
+//on MacOS, set OGL version explicitlz  
 #ifdef __APPLE__
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -223,17 +231,22 @@ int main(int argc, char* argv[]) {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
 
+  // create window, if unsuccessfull, quit
   window = glfwCreateWindow(window_width, window_height, "OpenGL Framework", NULL, NULL);
-
   if(!window) {
     glfwTerminate();
     std::exit(EXIT_FAILURE);
   }
+
   // use the windows context
   glfwMakeContextCurrent(window);
   // disable vsync
   glfwSwapInterval(0);
+  // register key input function
   glfwSetKeyCallback(window, key_callback);
+  // allow free mouse movement
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  // register resizing function
   glfwSetFramebufferSizeCallback(window, update_view);
 
   // initialize glindings in this context
@@ -253,30 +266,31 @@ int main(int argc, char* argv[]) {
     resource_path += "/../../resources/";
   }
 
-  simple_program = shader_loader::program(resource_path + "shaders/simple.vert", resource_path + "shaders/simple.frag");
   // do before framebuffer_resize call as it requires the projection uniform location
-  update_shader_programs();
+  initialize_shaders();
 
-  // initialize projection
+  // initialize projection and view matrices
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   update_view(window, width, height);
-
   update_camera();
 
-  load_model();
-  // Enables Depth Testing
+  // set up models
+  initialize_geometry();
+
+  // enable depth testing
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
   
   // rendering loop
   while(!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     render();
 
     glfwSwapBuffers(window);
-    glfwPollEvents();
 
     show_fps();
   }

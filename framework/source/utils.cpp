@@ -97,20 +97,6 @@ void glsl_error(int error, const char* description) {
   std::cerr << "GLSL Error " << error << " : "<< description << std::endl;
 }
 
-bool query_gl_error() {
-  bool error_occured = false;
-
-  GLenum error = glGetError();
-  while(error != GL_NO_ERROR) {
-    std::cerr << "OpenGL Error: " << Meta::getString(error) << std::endl;
-    error = glGetError();
-
-    error_occured = true;
-  }
-
-  return error_occured;
-}
-
 void watch_gl_errors(bool activate) {
   if(activate) {
     // add callback after each function call
@@ -159,12 +145,12 @@ void validate_program(GLuint program) {
     GLchar* log_buffer = (GLchar*)malloc(sizeof(GLchar) * log_size);
     glGetProgramInfoLog(program, log_size, &log_size, log_buffer);
     // output errors
-    output_log(log_buffer, "program nr. " + program);
+    output_log(log_buffer, "program nr. " + std::to_string(program));
     // free broken program
     glDeleteProgram(program);
     free(log_buffer);
 
-    throw std::logic_error("Validation of program nr. " + program);
+    throw std::logic_error("Validation of program nr. " + std::to_string(program));
   }
 }
 
