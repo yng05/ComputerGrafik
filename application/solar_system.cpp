@@ -216,7 +216,7 @@ void update_view(GLFWwindow* window, int width, int height) {
   // resize framebuffer
   glViewport(0, 0, width, height);
 
-  float aspect = float(width) / height;
+  float aspect = float(width) / float(height);
   float fov_y = camera_fov;
   // if width is smaller, extend vertical fov 
   if(width < height) {

@@ -33,15 +33,11 @@ else()
   SET(LIBRARY_OUTPUT_PATH	 ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
 endif()
 
-# include glm
-include_directories(external/glm-0.9.6.3)
+# include glm, as system header to suppress warnings
+include_directories(SYSTEM external/glm-0.9.6.3)
 
-# include stb_image
-include_directories(external/stb_image-2.0.6)
-# suppress warnings caused by stb_image which is compiled in texture_loader 
-if(NOT MSVC)
-	set_source_files_properties(framework/source/texture_loader.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable")
-endif()
+# include stb_image, as system header to suppress warnings
+include_directories(SYSTEM external/stb_image-2.0.6)
 
 # add tinyobjloader
 include_directories(external/tinyobjloader-aa07206)
@@ -83,7 +79,7 @@ endif()
 if(NOT MSVC)
     add_definitions(-std=c++11)
     # show warnings but suppress those caused by glm
-    add_definitions(-Wall -Wno-comment -Wno-strict-aliasing)
+    add_definitions(-Wall -Wconversion)
     # force linking  with c++11 lib
     if(APPLE)
         set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++0x")
@@ -93,7 +89,6 @@ else()
     # build in parallel, show warnings and suppress one caused by glbinding
     add_definitions(/MP /W3 /wd4251)
 endif()
-
 
 # remove external configuration vars from cmake gui
 mark_as_advanced(OPTION_BUILD_TESTS GMOCK_LIBRARY GMOCK_LIBRARY_DEBUG GTEST_LIBRARY
