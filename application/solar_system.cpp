@@ -53,7 +53,7 @@ struct model_object {
 model_object planet_object;
 
 // camera matrices
-glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
+glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 4.0f});
 glm::mat4 camera_projection{1.0f};
 
 // uniform locations
@@ -199,6 +199,7 @@ void initialize_geometry() {
 // render model
 void render() {
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
+  model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -1.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
   // extra matrix for normal transformation to keep them orthogonal to surface
   glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
@@ -257,7 +258,7 @@ void update_shader_programs() {
     update_view(window, width, height);
     update_camera();
   }
-  catch(std::exception& e) {
+  catch(std::exception&) {
     // dont crash, allow another try
   }
 }

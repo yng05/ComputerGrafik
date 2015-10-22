@@ -38,8 +38,8 @@ model obj(std::string const& name, model::attrib_flag_t import_attribs){
 
   for (auto& shape : shapes) {
     tinyobj::mesh_t& curr_mesh = shape.mesh;
-    
-    bool has_normals = import_attribs & model::NORMAL;
+    // prevent MSVC warning due to Win BOOL implementation
+    bool has_normals = (import_attribs & model::NORMAL) != 0;
     if(has_normals) {
       // generate normals if necessary
       if (curr_mesh.normals.empty()) {
@@ -47,7 +47,7 @@ model obj(std::string const& name, model::attrib_flag_t import_attribs){
       }
     }
 
-    bool has_uvs = import_attribs & model::TEXCOORD;
+    bool has_uvs = (import_attribs & model::TEXCOORD) != 0;
     if(has_uvs) {
       if (curr_mesh.texcoords.empty()) {
         has_uvs = false;
