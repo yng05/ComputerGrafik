@@ -199,8 +199,9 @@ void render() {
   glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
   model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -1.0f});
   glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
+
   // extra matrix for normal transformation to keep them orthogonal to surface
-  glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
+  glm::mat4 normal_matrix = glm::inverseTranspose(glm::inverse(camera_view) * model_matrix);
   glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
 
   glBindVertexArray(planet_object.vertex_AO);
