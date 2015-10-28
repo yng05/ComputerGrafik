@@ -1,6 +1,8 @@
 
 ///////////////////////////////// includes ///////////////////////////////////
 
+#include <memory>
+
 #include "program.hpp"
 #include "camera.hpp"
 #include "scene_node.hpp"
