@@ -28,7 +28,7 @@ public:
         return _model_transform;
     }
 
-    glm::mat4 transform (glm::mat4 const& transform)
+    void transform (glm::mat4 const& transform)
     {
         _model_transform = transform;
         _normal_transform = glm::transpose(glm::inverse(transform));

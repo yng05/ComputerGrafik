@@ -124,7 +124,7 @@ void initialize_geometry();
 void show_fps();
 void render();
 
-const float PI_2 = 3.14 / 2;
+const double PI_2 = 3.14 / 2.0;
 
 // helper
 glm::vec3 from_spherical(glm::vec3 const& c)

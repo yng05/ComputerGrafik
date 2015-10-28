@@ -22,19 +22,19 @@ class PointCloud : public SceneNode
         float y = float(random() % 1000) / 1000.0f;
         float z = float(random() % 1000) / 1000.0f;
 
-        x = (x-0.5) * 2;
-        y = (y-0.5) * 2;
-        z = (z-0.5) * 2;
+        x = (x-0.5f) * 2.0f;
+        y = (y-0.5f) * 2.0f;
+        z = (z-0.5f) * 2.0f;
 
         glm::vec3 p (x, y, z);
 
-        float r = glm::length(p) * 0.01 + 0.99;
+        float r = glm::length(p) * 0.01f + 0.99f;
         p = r / glm::length(p) * p;
         return p;
     }
 
     void
-    _generate_points (unsigned int num)
+    _generate_points (int num)
     {
         for (int i=0; i<num; ++i)
         {
@@ -83,7 +83,7 @@ protected:
     /* virtual */ void _draw () const override
     {
         glBindVertexArray(_vao);
-        glDrawArrays(GL_POINTS, 0, _indices.size());
+        glDrawArrays(GL_POINTS, 0, gl::GLsizei(_indices.size()));
         glBindVertexArray(0);
     }
 
