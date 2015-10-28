@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-# allows access to environment variables with the name 
+# allows access to environment variables with the name
 project (OpenGL_Framework)
 
 #set the build type if its not set
@@ -19,7 +19,7 @@ else()
 	add_definitions(-DGLBINDING_STATIC)
     # stb_image
     add_definitions(-DSTB_IMAGE_STATIC)
-endif()    
+endif()
 # glfw
 set(BUILD_SHARED_LIBS ${DYNAMIC_LINKING} CACHE BOOL "Build shared libraries" FORCE)
 
@@ -62,7 +62,7 @@ include_directories(external/glfw-3.1.1/include)
 # include framework headers
 include_directories(framework/include)
 # output executables
-file(GLOB FRAMEWORK_SOURCES framework/source/*.cpp)
+file(GLOB FRAMEWORK_SOURCES framework/source/*.cpp framework/source/*/*.cpp)
 add_executable(OpenGLFramework application/solar_system.cpp ${FRAMEWORK_SOURCES} ${TINYOBJLOADER_SOURCES})
 target_include_directories(OpenGLFramework PRIVATE include)
 target_link_libraries(OpenGLFramework glfw ${GLFW_LIBRARIES} glbinding)

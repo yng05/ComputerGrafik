@@ -1,5 +1,18 @@
 
 ///////////////////////////////// includes ///////////////////////////////////
+
+#include "program.hpp"
+#include "camera.hpp"
+#include "scene_node.hpp"
+#include "renderer.hpp"
+#include "program.hpp"
+#include "point_cloud.hpp"
+
+
+
+
+
+
 #include <glbinding/gl/gl.h>
 // load glbinding extensions
 #include <glbinding/Binding.h>
@@ -8,12 +21,17 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+/* include abstractions for the solar system */
+#include "planet.hpp"
+#include "sun.hpp"
+
 // use floats and med precision operations
 #define GLM_PRECISION_MEDIUMP_FLOAT
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/polar_coordinates.hpp>
 
 #include "shader_loader.hpp"
 #include "model_loader.hpp"
@@ -23,8 +41,24 @@
 #include <cstdlib>
 #include <iostream>
 
-// use gl definitions from glbinding 
+// use gl definitions from glbinding
 using namespace gl;
+
+//////      CUSTOM
+
+Renderer renderer;
+
+Camera cam;
+
+std::shared_ptr<Program> point_cloud_prg;
+
+std::shared_ptr<SceneNode> point_cloud;
+
+
+
+
+
+
 
 /////////////////////////// variable definitions //////////////////////////////
 // vertical field of view of camera
@@ -44,6 +78,10 @@ GLuint simple_program = 0;
 
 // cpu representation of model
 model planet_model{};
+
+// solar system
+std::vector<std::shared_ptr<Orb>> orbs;
+
 // holds gpu representation of model
 struct model_object {
   GLuint vertex_AO = 0;
@@ -52,8 +90,15 @@ struct model_object {
 };
 model_object planet_object;
 
+// holds current camera position in spherical coordinates
+glm::vec3 camera_position (
+  10,  // radius
+  0,  // latitude
+  0   // longitude
+);
+
 // camera matrices
-glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 4.0f});
+glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
 glm::mat4 camera_projection{1.0f};
 
 // uniform locations
@@ -72,20 +117,36 @@ void update_camera();
 void update_uniform_locations();
 void update_shader_programs();
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void initialize_solar_system();
 void initialize_geometry();
 void show_fps();
 void render();
 
+const float PI_2 = 3.14 / 2;
+
+// helper
+glm::vec3 from_spherical(glm::vec3 const& c)
+{
+  glm::mat4 t;
+
+  float phi   = c.y;
+  float theta = c.z;
+
+  t = glm::rotate(t, phi, glm::vec3(0.0, 1.0, 0.0));
+  t = glm::rotate(t, theta, glm::vec3(1.0, 0.0, 0.0));
+
+  return glm::vec3(t * glm::vec4(glm::vec3(0, 0, c.x), 1.0));
+}
+
 /////////////////////////////// main function /////////////////////////////////
 int main(int argc, char* argv[]) {
-
   glfwSetErrorCallback(utils::glsl_error);
 
   if(!glfwInit()) {
-    std::exit(EXIT_FAILURE);  
+    std::exit(EXIT_FAILURE);
   }
 
-//on MacOS, set OGL version explicitly 
+//on MacOS, set OGL version explicitly
 #ifdef __APPLE__
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -128,6 +189,8 @@ int main(int argc, char* argv[]) {
     resource_path += "/../../resources/";
   }
 
+
+
   // do before framebuffer_resize call as it requires the projection uniform location
   update_shader_programs();
 
@@ -137,19 +200,41 @@ int main(int argc, char* argv[]) {
   update_view(window, width, height);
   update_camera();
 
+  // set up solar system
+  initialize_solar_system();
+
   // set up models
   initialize_geometry();
+
+  point_cloud_prg = std::make_shared<Program>();
+  point_cloud_prg->load_from_file(resource_path + "shaders/pointcloud.vert", resource_path + "shaders/pointcloud.frag");
+
+  point_cloud = std::make_shared<PointCloud>(100000);
+  point_cloud->program(point_cloud_prg);
+  point_cloud->transform(glm::scale(point_cloud->transform(), glm::vec3(100)));
+
+  renderer.camera(cam);
+
+  renderer.register_for_rendering(point_cloud);
 
   // enable depth testing
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
-  
+
   // rendering loop
   while(!glfwWindowShouldClose(window)) {
     // query input
     glfwPollEvents();
     // clear buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    double mouse_x, mouse_y;
+    glfwGetCursorPos(window, &mouse_x, &mouse_y);
+
+    camera_position.y = (mouse_x / width) * PI_2;
+    camera_position.z = (mouse_y / height) * PI_2;
+    update_camera ();
+
     // draw geometry
     render();
     // swap draw buffer to front
@@ -162,6 +247,28 @@ int main(int argc, char* argv[]) {
 }
 
 ///////////////////////// initialisation functions ////////////////////////////
+
+// initialize solar system
+void initialize_solar_system () {
+  std::shared_ptr<Orb> sun = std::make_shared<Sun>("sun", 1.0f);
+  orbs.push_back(sun);
+
+  orbs.push_back(std::make_shared<Planet>("merkur",  sun, 0.03f, 2.0f));
+  orbs.push_back(std::make_shared<Planet>("venus",   sun, 0.05f, 3.0f));
+
+  std::shared_ptr<Orb> earth = std::make_shared<Planet>("earth", sun, 0.1f,  4.0f);
+  orbs.push_back(earth);
+
+  std::shared_ptr<Orb> moon = std::make_shared<Planet>("moon", earth, 0.03f,  0.5f);
+  orbs.push_back(moon);
+
+  orbs.push_back(std::make_shared<Planet>("mars",    sun, 0.08f, 5.0f));
+  orbs.push_back(std::make_shared<Planet>("jupiter", sun, 0.4f,  6.0f));
+  orbs.push_back(std::make_shared<Planet>("saturn",  sun, 0.25f, 7.0f));
+  orbs.push_back(std::make_shared<Planet>("uranus",  sun, 0.2f,  8.0f));
+  orbs.push_back(std::make_shared<Planet>("neptun",  sun, 0.01f, 9.0f));
+}
+
 // load models
 void initialize_geometry() {
   planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL);
@@ -198,18 +305,50 @@ void initialize_geometry() {
 ///////////////////////////// render functions ////////////////////////////////
 // render model
 void render() {
-  glm::mat4 model_matrix = glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
-  model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -1.0f});
-  glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(model_matrix));
-  // extra matrix for normal transformation to keep them orthogonal to surface
-  glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * model_matrix);
-  glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
+  glm::mat4 model_matrix; //= glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
+  //model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -10.0f});
 
-  glBindVertexArray(planet_object.vertex_AO);
-  utils::validate_program(simple_program);
-  // draw bound vertex array as triangles using bound shader
-  glDrawElements(GL_TRIANGLES, GLsizei(planet_model.indices.size()), model::INDEX.type, NULL);
+
+  renderer.render_all();
+
+
+  glUseProgram(simple_program);
+    // after shader is recompiled uniform locations may change
+    update_uniform_locations();
+
+
+  for (auto orb: orbs) {
+
+    // model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -10.0f});
+     glm::mat4 obj_model_matrix = orb->transformation();
+
+
+    orb->move(0.0001f);
+
+    glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(obj_model_matrix));
+
+    // extra matrix for normal transformation to keep them orthogonal to surface
+    glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * glm::inverse(obj_model_matrix));
+
+    glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
+
+
+    glBindVertexArray(planet_object.vertex_AO);
+    utils::validate_program(simple_program);
+    // draw bound vertex array as triangles using bound shader
+    glDrawElements(GL_TRIANGLES, GLsizei(planet_model.indices.size()), model::INDEX.type, NULL);
+  }
+
+
 }
+
+// void
+// render_stars ()
+// {
+//     glUseProgram (starfield_program);
+//     update_uniform_locations ();
+//     set_uniforms ();
+// }
 
 ///////////////////////////// update functions ////////////////////////////////
 // update viewport and field of view
@@ -219,18 +358,34 @@ void update_view(GLFWwindow* window, int width, int height) {
 
   float aspect = float(width) / float(height);
   float fov_y = camera_fov;
-  // if width is smaller, extend vertical fov 
+  // if width is smaller, extend vertical fov
   if(width < height) {
     fov_y = 2.0f * glm::atan(glm::tan(camera_fov * 0.5f) * (1.0f / aspect));
   }
-  // projection is hor+ 
-  camera_projection = glm::perspective(fov_y, aspect, 0.1f, 10.0f);
+  // projection is hor+
+  camera_projection = glm::perspective(fov_y, aspect, 0.1f, 1000.0f);
+
+  cam.update_projection(fov_y, aspect, 0.1f, 1000.0f);
+
   // upload matrix to gpu
   glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
 }
 
 // update camera transformation
 void update_camera() {
+  glm::vec3 eye = from_spherical(camera_position);
+  glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3 up(0.0f, 1.0f, 0.0f);
+
+
+
+
+  camera_view = glm::inverse(glm::lookAt(eye, center, up));
+
+  cam.view_transform(glm::lookAt(eye, center, up));
+
+  renderer.camera(cam);
+
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::mat4 inv_camera_view = glm::inverse(camera_view);
   // upload matrix to gpu
@@ -281,11 +436,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     update_shader_programs();
   }
   else if(key == GLFW_KEY_W && action == GLFW_PRESS) {
-    camera_view = glm::translate(camera_view, glm::vec3{0.0f, 0.0f, -0.1f});
+    camera_position.x -= 1;
     update_camera();
   }
   else if(key == GLFW_KEY_S && action == GLFW_PRESS) {
-    camera_view = glm::translate(camera_view, glm::vec3{0.0f, 0.0f, 0.1f});
+    camera_position.x += 1;
     update_camera();
   }
 }

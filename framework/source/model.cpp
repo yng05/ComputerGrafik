@@ -3,7 +3,7 @@
 #include <cstdint>
 
 std::vector<model::attribute> const model::VERTEX_ATTRIBS
- = {  
+ = {
     /*POSITION*/{ 1 << 0, sizeof(float), 3, GL_FLOAT},
     /*NORMAL*/{   1 << 1, sizeof(float), 3, GL_FLOAT},
     /*TEXCOORD*/{ 1 << 2, sizeof(float), 2, GL_FLOAT},
