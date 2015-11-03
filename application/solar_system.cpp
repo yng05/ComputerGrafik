@@ -2,17 +2,7 @@
 ///////////////////////////////// includes ///////////////////////////////////
 
 #include <memory>
-
-#include "program.hpp"
-#include "camera.hpp"
-#include "scene_node.hpp"
-#include "renderer.hpp"
-#include "program.hpp"
-#include "point_cloud.hpp"
-
-
-
-
+#include <random>
 
 
 #include <glbinding/gl/gl.h>
@@ -22,10 +12,6 @@
 //dont load gl bindings from glfw
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-
-/* include abstractions for the solar system */
-#include "planet.hpp"
-#include "sun.hpp"
 
 // use floats and med precision operations
 #define GLM_PRECISION_MEDIUMP_FLOAT
@@ -46,22 +32,6 @@
 // use gl definitions from glbinding
 using namespace gl;
 
-//////      CUSTOM
-
-Renderer renderer;
-
-Camera cam;
-
-std::shared_ptr<Program> point_cloud_prg;
-
-std::shared_ptr<SceneNode> point_cloud;
-
-
-
-
-
-
-
 /////////////////////////// variable definitions //////////////////////////////
 // vertical field of view of camera
 const float camera_fov = glm::radians(60.0f);
@@ -77,12 +47,20 @@ unsigned frames_per_second = 0;
 
 // the main shader program
 GLuint simple_program = 0;
+GLuint starfield_program = 0;
+GLuint orbit_line_program = 0;
+
+// random number generator
+std::default_random_engine prng;
 
 // cpu representation of model
 model planet_model{};
 
-// solar system
-std::vector<std::shared_ptr<Orb>> orbs;
+// number of stars
+const unsigned int num_stars = 100000;
+
+// resolution of the orbit lines
+const unsigned int orbit_line_resolution = 1000;
 
 // holds gpu representation of model
 struct model_object {
@@ -92,12 +70,34 @@ struct model_object {
 };
 model_object planet_object;
 
+struct point_cloud_object {
+  GLuint vertex_AO = 0;
+  GLuint vertex_BO = 0;
+};
+point_cloud_object starfield_object;
+
+struct line_object {
+  GLuint vertex_AO = 0;
+  GLuint vertex_BO = 0;
+  GLuint element_BO = 0;
+};
+line_object orbit_line_object;
+
+// holds the structure of the solar system
+struct orb {
+  orb (float r, float sz, float sp, float az, orb* p)
+   : radius(r), size(sz), speed(sp), azimuth(az), parent(p)
+  {}
+  float radius = 0;
+  float size = 0;
+  float speed = 0;
+  float azimuth = 0;
+  orb* parent = NULL;
+};
+std::vector<orb*> orbs;
+
 // holds current camera position in spherical coordinates
-glm::vec3 camera_position (
-  10,  // radius
-  0,  // latitude
-  0   // longitude
-);
+glm::vec3 camera_position(10.0f, 0.0f, 0.0f);
 
 // camera matrices
 glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
@@ -118,13 +118,12 @@ void update_view(GLFWwindow* window, int width, int height);
 void update_camera();
 void update_uniform_locations();
 void update_shader_programs();
+void update_camera_position(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void initialize_solar_system();
 void initialize_geometry();
 void show_fps();
 void render();
-
-const double PI_2 = 3.14 / 2.0;
 
 // helper
 glm::vec3 from_spherical(glm::vec3 const& c)
@@ -208,17 +207,6 @@ int main(int argc, char* argv[]) {
   // set up models
   initialize_geometry();
 
-  point_cloud_prg = std::make_shared<Program>();
-  point_cloud_prg->load_from_file(resource_path + "shaders/pointcloud.vert", resource_path + "shaders/pointcloud.frag");
-
-  point_cloud = std::make_shared<PointCloud>(100000);
-  point_cloud->program(point_cloud_prg);
-  point_cloud->transform(glm::scale(point_cloud->transform(), glm::vec3(100)));
-
-  renderer.camera(cam);
-
-  renderer.register_for_rendering(point_cloud);
-
   // enable depth testing
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LESS);
@@ -230,12 +218,7 @@ int main(int argc, char* argv[]) {
     // clear buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    double mouse_x, mouse_y;
-    glfwGetCursorPos(window, &mouse_x, &mouse_y);
-
-    camera_position.y = (mouse_x / width) * PI_2;
-    camera_position.z = (mouse_y / height) * PI_2;
-    update_camera ();
+    update_camera_position(window, width, height);
 
     // draw geometry
     render();
@@ -252,27 +235,42 @@ int main(int argc, char* argv[]) {
 
 // initialize solar system
 void initialize_solar_system () {
-  std::shared_ptr<Orb> sun = std::make_shared<Sun>("sun", 1.0f);
+
+  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL);
+  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun);
+  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun);
+  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun);
+  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun);
+  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun);
+  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun);
+  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun);
+  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun);
+  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun);
+
+  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth);
+
   orbs.push_back(sun);
-
-  orbs.push_back(std::make_shared<Planet>("merkur",  sun, 0.03f, 2.0f));
-  orbs.push_back(std::make_shared<Planet>("venus",   sun, 0.05f, 3.0f));
-
-  std::shared_ptr<Orb> earth = std::make_shared<Planet>("earth", sun, 0.1f,  4.0f);
+  orbs.push_back(merkur);
+  orbs.push_back(venus);
   orbs.push_back(earth);
+  orbs.push_back(mars);
+  orbs.push_back(jupiter);
+  orbs.push_back(saturn);
+  orbs.push_back(uranus);
+  orbs.push_back(neptun);
+  orbs.push_back(pluto);
 
-  std::shared_ptr<Orb> moon = std::make_shared<Planet>("moon", earth, 0.03f,  0.5f);
   orbs.push_back(moon);
 
-  orbs.push_back(std::make_shared<Planet>("mars",    sun, 0.08f, 5.0f));
-  orbs.push_back(std::make_shared<Planet>("jupiter", sun, 0.4f,  6.0f));
-  orbs.push_back(std::make_shared<Planet>("saturn",  sun, 0.25f, 7.0f));
-  orbs.push_back(std::make_shared<Planet>("uranus",  sun, 0.2f,  8.0f));
-  orbs.push_back(std::make_shared<Planet>("neptun",  sun, 0.01f, 9.0f));
+  for (auto& orb: orbs) {
+    if (orb->radius > 0 && orb->size > 0) {
+      orb->speed = 1 / (orb->size * orb->radius);
+    }
+  }
+
 }
 
-// load models
-void initialize_geometry() {
+void initialize_planet_geometry() {
   planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL);
 
   // generate vertex array object
@@ -285,7 +283,7 @@ void initialize_geometry() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ARRAY_BUFFER, planet_object.vertex_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * planet_model.data.size(), planet_model.data.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(sizeof(float) * planet_model.data.size()), planet_model.data.data(), GL_STATIC_DRAW);
 
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
@@ -301,56 +299,184 @@ void initialize_geometry() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, planet_object.element_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, model::INDEX.size * planet_model.indices.size(), planet_model.indices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(model::INDEX.size * GLsizei(planet_model.indices.size())), planet_model.indices.data(), GL_STATIC_DRAW);
+
+}
+
+std::vector<float> generate_random_starfield (int num_stars)
+{
+  std::normal_distribution<float> dist;
+  std::vector<float> data;
+  for (int i=0; i<num_stars; ++i)
+  {
+    float x = dist(prng);
+    float y = dist(prng);
+    float z = dist(prng);
+    glm::vec3 p(x, y, z);
+    p = 0.9f * p + 0.1f * glm::normalize(p);
+
+    data.push_back(p.x);
+    data.push_back(p.y);
+    data.push_back(p.z);
+  }
+  return data;
+}
+
+void initialize_starfield_geometry ()
+{
+  auto data = generate_random_starfield(num_stars);
+
+  // generate vertex array object
+  glGenVertexArrays(1, &starfield_object.vertex_AO);
+  // bind the array for attaching buffers
+  glBindVertexArray(starfield_object.vertex_AO);
+
+  // generate generic buffer
+  glGenBuffers(1, &starfield_object.vertex_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ARRAY_BUFFER, starfield_object.vertex_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(GLsizei(sizeof(float) * data.size())), data.data(), GL_STATIC_DRAW);
+
+  // activate first attribute on gpu
+  glEnableVertexAttribArray(0);
+
+  // first attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::POSITION]);
+}
+
+std::pair<std::vector<float>, std::vector<int>> generate_orbit_line_data (int orbit_line_resolution)
+{
+  std::vector<float> data;
+  std::vector<int> indices;
+  for (int i=0; i< orbit_line_resolution; ++i)
+  {
+    float t = float(i) / float(orbit_line_resolution);
+    float x = (float) glm::cos(t * 2.0f * M_PI);
+    float y = (float) glm::sin(t * 2.0f * M_PI);
+    float z = 0;
+
+    int first = i;
+    int second = (i+1) % orbit_line_resolution;
+
+    data.push_back(x);
+    data.push_back(y);
+    data.push_back(z);
+
+    indices.push_back(first);
+    indices.push_back(second);
+  }
+
+  return std::make_pair(data, indices);
+}
+
+void initialize_orbit_line_geometry ()
+{
+  auto data = generate_orbit_line_data(orbit_line_resolution);
+
+  // generate vertex array object
+  glGenVertexArrays(1, &orbit_line_object.vertex_AO);
+  // bind the array for attaching buffers
+  glBindVertexArray(orbit_line_object.vertex_AO);
+
+  // generate generic buffer
+  glGenBuffers(1, &orbit_line_object.vertex_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ARRAY_BUFFER, orbit_line_object.vertex_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(GLsizei(sizeof(float)) * data.first.size()), data.first.data(), GL_STATIC_DRAW);
+
+  // activate first attribute on gpu
+  glEnableVertexAttribArray(0);
+  // first attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::POSITION]);
+
+   // generate generic buffer
+  glGenBuffers(1, &orbit_line_object.element_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, orbit_line_object.element_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(GLsizei(model::INDEX.size) * GLsizei(data.second.size())), data.second.data(), GL_STATIC_DRAW);
+
+}
+
+
+// load models
+void initialize_geometry() {
+  initialize_planet_geometry();
+  initialize_starfield_geometry();
+  initialize_orbit_line_geometry();
 }
 
 ///////////////////////////// render functions ////////////////////////////////
-// render model
-void render() {
-  glm::mat4 model_matrix; //= glm::rotate(glm::mat4{}, float(glfwGetTime()), glm::vec3{0.0f, 1.0f, 0.0f});
-  //model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -10.0f});
 
-
-  renderer.render_all();
-
-
+void render_planets (float t)
+{
   glUseProgram(simple_program);
-    // after shader is recompiled uniform locations may change
-    update_uniform_locations();
+  update_uniform_locations();
+  update_camera();
 
+  for (auto orb: orbs)
+  {
+    glm::mat4 transform;
+    glm::mat4 normal_transform;
+    glm::vec3 position;
 
-  for (auto orb: orbs) {
+    auto current = orb;
+    while (current != NULL)
+    {
+      position.x += glm::cos(t * current->speed) * current->radius;
+      position.y += glm::sin(t * current->speed) * current->radius;
+      current = current->parent;
+    }
 
-    // model_matrix = glm::translate(model_matrix, glm::vec3{0.0f, 0.0f, -10.0f});
-     glm::mat4 obj_model_matrix = orb->transformation();
+    transform = glm::translate(transform, position);
+    transform = glm::scale(transform, glm::vec3(orb->size));
 
+    glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
 
-    orb->move(0.0001f);
-
-    glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(obj_model_matrix));
-
-    // extra matrix for normal transformation to keep them orthogonal to surface
-    glm::mat4 normal_matrix = glm::inverseTranspose(camera_view * glm::inverse(obj_model_matrix));
-
-    glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_matrix));
-
+    normal_transform = glm::inverseTranspose(camera_view * glm::inverse(transform));
+    glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
 
     glBindVertexArray(planet_object.vertex_AO);
     utils::validate_program(simple_program);
-    // draw bound vertex array as triangles using bound shader
     glDrawElements(GL_TRIANGLES, GLsizei(planet_model.indices.size()), model::INDEX.type, NULL);
   }
+}
 
+void render_stars ()
+{
+  glUseProgram(starfield_program);
+  update_uniform_locations();
+  update_camera();
+
+  glm::mat4 transform;
+  transform = glm::scale(transform, glm::vec3(100.0f));
+  glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+
+  glUseProgram(starfield_program);
+  glBindVertexArray(starfield_object.vertex_AO);
+  glDrawArrays(GL_POINTS, 0, num_stars);
+}
+
+void render_orbit_lines ()
+{
+  // for (auto orb: orbs)
+  // {
+
+  // }
+}
+
+// render model
+void render() {
+  float factor = 1.0f;
+  float t = factor * (float) glfwGetTime();
+
+  render_stars();
+  render_planets(t);
 
 }
 
-// void
-// render_stars ()
-// {
-//     glUseProgram (starfield_program);
-//     update_uniform_locations ();
-//     set_uniforms ();
-// }
 
 ///////////////////////////// update functions ////////////////////////////////
 // update viewport and field of view
@@ -361,13 +487,12 @@ void update_view(GLFWwindow* window, int width, int height) {
   float aspect = float(width) / float(height);
   float fov_y = camera_fov;
   // if width is smaller, extend vertical fov
-  if(width < height) {
+  if(width < height)
+  {
     fov_y = 2.0f * glm::atan(glm::tan(camera_fov * 0.5f) * (1.0f / aspect));
   }
   // projection is hor+
   camera_projection = glm::perspective(fov_y, aspect, 0.1f, 1000.0f);
-
-  cam.update_projection(fov_y, aspect, 0.1f, 1000.0f);
 
   // upload matrix to gpu
   glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
@@ -379,14 +504,7 @@ void update_camera() {
   glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
   glm::vec3 up(0.0f, 1.0f, 0.0f);
 
-
-
-
   camera_view = glm::inverse(glm::lookAt(eye, center, up));
-
-  cam.view_transform(glm::lookAt(eye, center, up));
-
-  renderer.camera(cam);
 
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::mat4 inv_camera_view = glm::inverse(camera_view);
@@ -396,24 +514,40 @@ void update_camera() {
 
 // load shaders and update uniform locations
 void update_shader_programs() {
-  try {
-    // throws exception when compiling was unsuccessfull
-    GLuint new_program = shader_loader::program(resource_path + "shaders/simple.vert",
-                                                resource_path + "shaders/simple.frag");
-    // free old shader
-    glDeleteProgram(simple_program);
-    // save new shader
-    simple_program = new_program;
-    // bind shader
-    glUseProgram(simple_program);
-    // after shader is recompiled uniform locations may change
-    update_uniform_locations();
 
-    // upload view uniforms to new shader
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-    update_view(window, width, height);
-    update_camera();
+  std::vector<std::pair<std::pair<std::string, std::string>, GLuint*>> shaders {
+    { {"shaders/simple.vert",     "shaders/simple.frag"},     &simple_program },
+    { {"shaders/pointcloud.vert", "shaders/pointcloud.frag"}, &starfield_program },
+    { {"shaders/lines.vert",      "shaders/lines.frag"},      &orbit_line_program }
+  };
+
+  try {
+    for (auto p: shaders) {
+
+      auto vertex_path = p.first.first;
+      auto frag_path   = p.first.second;
+      auto program     = p.second;
+
+      // throws exception when compiling was unsuccessfull
+      GLuint new_program = shader_loader::program(resource_path + vertex_path,
+                                                  resource_path + frag_path);
+      // free old shader
+      glDeleteProgram(*program);
+
+      // save new shader
+      *program = new_program;
+
+      // bind shader
+      glUseProgram(*program);
+      // after shader is recompiled uniform locations may change
+      update_uniform_locations();
+
+      // upload view uniforms to new shader
+      int width, height;
+      glfwGetFramebufferSize(window, &width, &height);
+      update_view(window, width, height);
+      update_camera();
+    }
   }
   catch(std::exception&) {
     // dont crash, allow another try
@@ -426,6 +560,17 @@ void update_uniform_locations() {
   location_model_matrix = glGetUniformLocation(simple_program, "ModelMatrix");
   location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
   location_projection_matrix = glGetUniformLocation(simple_program, "ProjectionMatrix");
+}
+
+void update_camera_position (GLFWwindow* window, int width, int height) {
+  double mouse_x, mouse_y;
+  glfwGetCursorPos(window, &mouse_x, &mouse_y);
+
+  // set latitude and longitude to thsle mouse x and mouse y offset respectively
+  camera_position.y = (float) (mouse_x / width) * float(M_PI) / 2.0f;
+  camera_position.z = (float) (mouse_y / height) * float(M_PI) / 2.0f;
+
+  update_camera ();
 }
 
 ///////////////////////////// misc functions ////////////////////////////////

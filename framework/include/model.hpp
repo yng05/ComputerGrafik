@@ -5,7 +5,7 @@
 
 #include <map>
 #include <vector>
-// use gl definitions from glbinding 
+// use gl definitions from glbinding
 using namespace gl;
 
 // holds vertex information and triangle indices
@@ -50,7 +50,7 @@ struct model {
   static attribute const& BITANGENT;
   // is not a vertex attribute, so not stored in VERTEX_ATTRIBS
   static attribute const  INDEX;
-  
+
   model();
   model(std::vector<GLfloat> const& databuff, attrib_flag_t attribs, std::vector<GLuint> const& trianglebuff = std::vector<GLuint>{});
 

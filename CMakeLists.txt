@@ -83,7 +83,7 @@ if(NOT MSVC)
     # force linking  with c++11 lib
     if(APPLE)
         set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++0x")
-        add_definitions(-stdlib=libc++)
+        # add_definitions(-stdlib=libc++)
     endif()
 else()
     # build in parallel, show warnings and suppress one caused by glbinding
