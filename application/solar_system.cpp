@@ -349,7 +349,7 @@ std::pair<std::vector<float>, std::vector<int>> generate_orbit_line_data (int or
 {
   std::vector<float> data;
   std::vector<int> indices;
-  for (int i=0; i< orbit_line_resolution; ++i)
+  for (int i=0; i< orbit_line_resolution+1; ++i)
   {
     float t = float(i) / float(orbit_line_resolution);
     float x = (float) glm::cos(t * 2.0f * M_PI);
@@ -459,12 +459,36 @@ void render_stars ()
   glDrawArrays(GL_POINTS, 0, num_stars);
 }
 
-void render_orbit_lines ()
+void render_orbit_lines (float t)
 {
-  // for (auto orb: orbs)
-  // {
+  glUseProgram(orbit_line_program);
+  update_uniform_locations();
+  update_camera();
 
-  // }
+  for (auto orb: orbs)
+  {
+    glm::mat4 transform;
+    glm::mat4 normal_transform;
+    glm::vec3 position;
+
+    auto current = orb;
+    while (current->parent != NULL)
+    {
+      current = current->parent;
+      position.x += glm::cos(t * current->speed) * current->radius;
+      position.y += glm::sin(t * current->speed) * current->radius;
+
+    }
+
+    transform = glm::translate(transform, position);
+    transform = glm::scale(transform, glm::vec3(orb->radius));
+
+    glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+
+    glBindVertexArray(orbit_line_object.vertex_AO);
+    utils::validate_program(orbit_line_program);
+    glDrawElements(GL_LINE_LOOP, orbit_line_resolution, model::INDEX.type, NULL);
+  }
 }
 
 // render model
@@ -474,6 +498,7 @@ void render() {
 
   render_stars();
   render_planets(t);
+  render_orbit_lines(t);
 
 }
 
