@@ -761,6 +761,10 @@ void show_fps() {
     std::string title{"OpenGL Framework - "};
     title += std::to_string(frames_per_second) + " fps";
 
+    if (use_cell_shading == 1.0f)
+    {
+      title += " - Cell Shading";
+    }
     if (ambient == 1.0f)
     {
       title += " - Ambient Light";
