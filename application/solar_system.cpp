@@ -85,14 +85,15 @@ line_object orbit_line_object;
 
 // holds the structure of the solar system
 struct orb {
-  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl)
-   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), parent(p)
+  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el)
+   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), emitsLight(el), parent(p)
   {}
   float radius = 0;
   float size = 0;
   float speed = 0;
   float azimuth = 0;
   glm::vec3 color;
+  bool emitsLight = false;
   orb* parent = NULL;
 };
 std::vector<orb*> orbs;
@@ -112,6 +113,9 @@ struct simple_program_locations_struct
   GLint location_view_matrix = -1;
   GLint location_projection_matrix = -1;
   GLint location_color_vector = -1;
+  GLint location_light_vector = -1;
+  GLint location_emits_light_bool = -1;
+  GLint location_shininess_float = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -255,18 +259,18 @@ int main(int argc, char* argv[]) {
 // initialize solar system
 void initialize_solar_system () {
 
-  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f));
-  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f));
-  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f));
-  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f));
-  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f));
-  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f));
-  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f));
-  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f));
-  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f));
-  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f));
+  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true);
+  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false);
+  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false);
+  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false);
+  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false);
+  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false);
+  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false);
+  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false);
+  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false);
+  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false);
 
-  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f));
+  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false);
 
   orbs.push_back(sun);
   orbs.push_back(merkur);
@@ -444,6 +448,12 @@ void render_planets (float t)
 {
   glUseProgram(simple_program);
 
+  // the sun is in the origin
+  glUniform3f(simple_program_locations.location_light_vector, 0.0f, 0.0f, 0.0f);
+
+  // shininess is the same for all planets
+  glUniform1f(simple_program_locations.location_shininess_float, 10.0f);
+
   for (auto orb: orbs)
   {
     glm::mat4 transform;
@@ -464,8 +474,9 @@ void render_planets (float t)
     glUniformMatrix4fv(simple_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
 
     glUniform3f(simple_program_locations.location_color_vector, orb->color.x, orb->color.y, orb->color.z);
+    glUniform1i(simple_program_locations.location_emits_light_bool, orb->emitsLight);
 
-    normal_transform = glm::inverseTranspose(camera_view * glm::inverse(transform));
+    normal_transform = glm::inverseTranspose(glm::inverse(camera_view) * transform);
     glUniformMatrix4fv(simple_program_locations.location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
 
     glBindVertexArray(planet_object.vertex_AO);
@@ -634,6 +645,9 @@ void update_uniform_locations() {
   simple_program_locations.location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
   simple_program_locations.location_projection_matrix = glGetUniformLocation(simple_program, "ProjectionMatrix");
   simple_program_locations.location_color_vector = glGetUniformLocation(simple_program, "Color");
+  simple_program_locations.location_light_vector = glGetUniformLocation(simple_program, "LightPosition");
+  simple_program_locations.location_emits_light_bool = glGetUniformLocation(simple_program, "EmitsLight");
+  simple_program_locations.location_shininess_float = glGetUniformLocation(simple_program, "Shininess");
 
   glUseProgram(starfield_program);
   starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
