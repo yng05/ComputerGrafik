@@ -67,6 +67,9 @@ float ambient = 0.0f;
 float specular = 0.0f;
 float diffuse = 0.0f;
 
+// use cell shading
+float use_cell_shading = 0.0f;
+
 // holds gpu representation of model
 struct model_object {
   GLuint vertex_AO = 0;
@@ -124,6 +127,7 @@ struct simple_program_locations_struct
   GLint location_ambient_float = -1;
   GLint location_specular_float = -1;
   GLint location_diffuse_float = -1;
+  GLint location_use_cell_shading = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -659,6 +663,7 @@ void update_uniform_locations() {
   simple_program_locations.location_ambient_float = glGetUniformLocation(simple_program, "Ambient");
   simple_program_locations.location_specular_float = glGetUniformLocation(simple_program, "Specular");
   simple_program_locations.location_diffuse_float = glGetUniformLocation(simple_program, "Diffuse");
+  simple_program_locations.location_use_cell_shading = glGetUniformLocation(simple_program, "UseCellShading");
 
   glUseProgram(starfield_program);
   starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
@@ -735,6 +740,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
       diffuse = 1.0f;
     }
     glUniform1f(simple_program_locations.location_diffuse_float, diffuse);
+  }
+  if (key == GLFW_KEY_4 && action == GLFW_PRESS)
+  { // diffuse light
+    if (use_cell_shading == 1.0f) {
+      use_cell_shading = 0.0f;
+    } else
+    {
+      use_cell_shading = 1.0f;
+    }
+    glUniform1f(simple_program_locations.location_use_cell_shading, use_cell_shading);
   }
 }
 

@@ -60,16 +60,17 @@ void main(void)
 
     vec3 totalLight = ambientLight + diffuseLight + specularLight;
 
-    if (1.0f == 1.0f) {
+    // use cell shading
+    if (pass_UseCellShading == 1.0f) {
         float l = length(totalLight);
         l = ceil(5.0f * pow(l, 0.5f)) / 5.0f;
         totalLight = normalize(totalLight) * l;
-    }
 
-    float toonThreshold = dot(pass_Normal.xyz, pass_EyeDirection.xyz);
-    if (toonThreshold > 0.0f && toonThreshold < 0.4f)
-    {
-        totalLight = vec3(1.0f, 0.0f, 0.0f);
+        float toonThreshold = dot(pass_Normal.xyz, pass_EyeDirection.xyz);
+        if (toonThreshold > 0.0f && toonThreshold < 0.4f)
+        {
+            totalLight = vec3(1.0f, 0.0f, 0.0f);
+        }
     }
 
     out_Color = vec4( totalLight, 1.0f);

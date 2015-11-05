@@ -16,6 +16,7 @@ uniform float Shininess;
 uniform float Ambient;
 uniform float Specular;
 uniform float Diffuse;
+uniform float UseCellShading;
 
 out vec4 pass_Normal;
 out vec4 pass_LightDirection;
@@ -26,6 +27,7 @@ out float pass_Shininess;
 out float pass_Ambient;
 out float pass_Specular;
 out float pass_Diffuse;
+out float pass_UseCellShading;
 
 
 void main(void)
@@ -37,6 +39,8 @@ void main(void)
     vec4 lightDirection = vec4(LightPosition, 1.0f) - worldPosition;
 
     pass_Shininess = Shininess;
+
+    pass_UseCellShading = UseCellShading;
 
     pass_Color = Color;
 
