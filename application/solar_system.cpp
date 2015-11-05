@@ -104,10 +104,27 @@ glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f})
 glm::mat4 camera_projection{1.0f};
 
 // uniform locations
-GLint location_normal_matrix = -1;
-GLint location_model_matrix = -1;
-GLint location_view_matrix = -1;
-GLint location_projection_matrix = -1;
+struct simple_program_locations_struct
+{
+  GLint location_normal_matrix = -1;
+  GLint location_model_matrix = -1;
+  GLint location_view_matrix = -1;
+  GLint location_projection_matrix = -1;
+} simple_program_locations;
+
+struct starfield_program_locations_struct
+{
+  GLint location_model_matrix = -1;
+  GLint location_view_matrix = -1;
+  GLint location_projection_matrix = -1;
+} starfield_program_locations;
+
+struct orbit_line_program_location_struct
+{
+  GLint location_model_matrix = -1;
+  GLint location_view_matrix = -1;
+  GLint location_projection_matrix = -1;
+} orbit_line_program_locations;
 
 // path to the resource folders
 std::string resource_path{};
@@ -413,8 +430,6 @@ void initialize_geometry() {
 void render_planets (float t)
 {
   glUseProgram(simple_program);
-  update_uniform_locations();
-  update_camera();
 
   for (auto orb: orbs)
   {
@@ -433,10 +448,10 @@ void render_planets (float t)
     transform = glm::translate(transform, position);
     transform = glm::scale(transform, glm::vec3(orb->size));
 
-    glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+    glUniformMatrix4fv(simple_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
 
     normal_transform = glm::inverseTranspose(camera_view * glm::inverse(transform));
-    glUniformMatrix4fv(location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
+    glUniformMatrix4fv(simple_program_locations.location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
 
     glBindVertexArray(planet_object.vertex_AO);
     utils::validate_program(simple_program);
@@ -447,12 +462,10 @@ void render_planets (float t)
 void render_stars ()
 {
   glUseProgram(starfield_program);
-  update_uniform_locations();
-  update_camera();
 
   glm::mat4 transform;
   transform = glm::scale(transform, glm::vec3(100.0f));
-  glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+  glUniformMatrix4fv(starfield_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
 
   glUseProgram(starfield_program);
   glBindVertexArray(starfield_object.vertex_AO);
@@ -462,8 +475,6 @@ void render_stars ()
 void render_orbit_lines (float t)
 {
   glUseProgram(orbit_line_program);
-  update_uniform_locations();
-  update_camera();
 
   for (auto orb: orbs)
   {
@@ -483,7 +494,7 @@ void render_orbit_lines (float t)
     transform = glm::translate(transform, position);
     transform = glm::scale(transform, glm::vec3(orb->radius));
 
-    glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+    glUniformMatrix4fv(orbit_line_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
 
     glBindVertexArray(orbit_line_object.vertex_AO);
     utils::validate_program(orbit_line_program);
@@ -520,7 +531,14 @@ void update_view(GLFWwindow* window, int width, int height) {
   camera_projection = glm::perspective(fov_y, aspect, 0.1f, 1000.0f);
 
   // upload matrix to gpu
-  glUniformMatrix4fv(location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
+  glUseProgram(simple_program);
+  glUniformMatrix4fv(simple_program_locations.location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
+
+  glUseProgram(starfield_program);
+  glUniformMatrix4fv(starfield_program_locations.location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
+
+  glUseProgram(orbit_line_program);
+  glUniformMatrix4fv(orbit_line_program_locations.location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
 }
 
 // update camera transformation
@@ -534,7 +552,14 @@ void update_camera() {
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::mat4 inv_camera_view = glm::inverse(camera_view);
   // upload matrix to gpu
-  glUniformMatrix4fv(location_view_matrix, 1, GL_FALSE, glm::value_ptr(inv_camera_view));
+  glUseProgram(simple_program);
+  glUniformMatrix4fv(simple_program_locations.location_view_matrix, 1, GL_FALSE, glm::value_ptr(inv_camera_view));
+
+  glUseProgram(starfield_program);
+  glUniformMatrix4fv(starfield_program_locations.location_view_matrix, 1, GL_FALSE, glm::value_ptr(inv_camera_view));
+
+  glUseProgram(orbit_line_program);
+  glUniformMatrix4fv(orbit_line_program_locations.location_view_matrix, 1, GL_FALSE, glm::value_ptr(inv_camera_view));
 }
 
 // load shaders and update uniform locations
@@ -565,14 +590,17 @@ void update_shader_programs() {
       // bind shader
       glUseProgram(*program);
       // after shader is recompiled uniform locations may change
-      update_uniform_locations();
 
-      // upload view uniforms to new shader
+
+    }
+
+    update_uniform_locations();
+
+    // upload view uniforms to new shader
       int width, height;
       glfwGetFramebufferSize(window, &width, &height);
       update_view(window, width, height);
       update_camera();
-    }
   }
   catch(std::exception&) {
     // dont crash, allow another try
@@ -581,10 +609,21 @@ void update_shader_programs() {
 
 // update shader uniform locations
 void update_uniform_locations() {
-  location_normal_matrix = glGetUniformLocation(simple_program, "NormalMatrix");
-  location_model_matrix = glGetUniformLocation(simple_program, "ModelMatrix");
-  location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
-  location_projection_matrix = glGetUniformLocation(simple_program, "ProjectionMatrix");
+  glUseProgram(simple_program);
+  simple_program_locations.location_normal_matrix = glGetUniformLocation(simple_program, "NormalMatrix");
+  simple_program_locations.location_model_matrix = glGetUniformLocation(simple_program, "ModelMatrix");
+  simple_program_locations.location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
+  simple_program_locations.location_projection_matrix = glGetUniformLocation(simple_program, "ProjectionMatrix");
+
+  glUseProgram(starfield_program);
+  starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
+  starfield_program_locations.location_view_matrix = glGetUniformLocation(starfield_program, "ViewMatrix");
+  starfield_program_locations.location_projection_matrix = glGetUniformLocation(starfield_program, "ProjectionMatrix");
+
+  glUseProgram(orbit_line_program);
+  orbit_line_program_locations.location_model_matrix = glGetUniformLocation(orbit_line_program, "ModelMatrix");
+  orbit_line_program_locations.location_view_matrix = glGetUniformLocation(orbit_line_program, "ViewMatrix");
+  orbit_line_program_locations.location_projection_matrix = glGetUniformLocation(orbit_line_program, "ProjectionMatrix");
 }
 
 void update_camera_position (GLFWwindow* window, int width, int height) {
