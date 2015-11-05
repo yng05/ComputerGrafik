@@ -62,6 +62,11 @@ const unsigned int num_stars = 100000;
 // resolution of the orbit lines
 const unsigned int orbit_line_resolution = 1000;
 
+// ambient/specular/diffuse light
+float ambient = 0.0f;
+float specular = 0.0f;
+float diffuse = 0.0f;
+
 // holds gpu representation of model
 struct model_object {
   GLuint vertex_AO = 0;
@@ -116,6 +121,9 @@ struct simple_program_locations_struct
   GLint location_light_vector = -1;
   GLint location_emits_light_bool = -1;
   GLint location_shininess_float = -1;
+  GLint location_ambient_float = -1;
+  GLint location_specular_float = -1;
+  GLint location_diffuse_float = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -648,6 +656,9 @@ void update_uniform_locations() {
   simple_program_locations.location_light_vector = glGetUniformLocation(simple_program, "LightPosition");
   simple_program_locations.location_emits_light_bool = glGetUniformLocation(simple_program, "EmitsLight");
   simple_program_locations.location_shininess_float = glGetUniformLocation(simple_program, "Shininess");
+  simple_program_locations.location_ambient_float = glGetUniformLocation(simple_program, "Ambient");
+  simple_program_locations.location_specular_float = glGetUniformLocation(simple_program, "Specular");
+  simple_program_locations.location_diffuse_float = glGetUniformLocation(simple_program, "Diffuse");
 
   glUseProgram(starfield_program);
   starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
@@ -674,19 +685,56 @@ void update_camera_position (GLFWwindow* window, int width, int height) {
 ///////////////////////////// misc functions ////////////////////////////////
 // handle key input
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+  // moving:
+  if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+  {
     glfwSetWindowShouldClose(window, 1);
   }
-  else if(key == GLFW_KEY_R && action == GLFW_PRESS) {
+  else if(key == GLFW_KEY_R && action == GLFW_PRESS)
+  {
     update_shader_programs();
   }
-  else if(key == GLFW_KEY_W && action == GLFW_PRESS) {
+  else if(key == GLFW_KEY_W && action == GLFW_PRESS)
+  {
     camera_position.x -= 1;
     update_camera();
   }
-  else if(key == GLFW_KEY_S && action == GLFW_PRESS) {
+  else if(key == GLFW_KEY_S && action == GLFW_PRESS)
+  {
     camera_position.x += 1;
     update_camera();
+  }
+  // light
+  glUseProgram(simple_program);
+  if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+  { // ambient light
+    if (ambient == 1.0f) {
+      ambient = 0.0f;
+    } else
+    {
+      ambient = 1.0f;
+    }
+    glUniform1f(simple_program_locations.location_ambient_float, ambient);
+  }
+  if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+  { // specular light
+    if (specular == 1.0f) {
+      specular = 0.0f;
+    } else
+    {
+      specular = 1.0f;
+    }
+    glUniform1f(simple_program_locations.location_specular_float, specular);
+  }
+  if (key == GLFW_KEY_3 && action == GLFW_PRESS)
+  { // diffuse light
+    if (diffuse == 1.0f) {
+      diffuse = 0.0f;
+    } else
+    {
+      diffuse = 1.0f;
+    }
+    glUniform1f(simple_program_locations.location_diffuse_float, diffuse);
   }
 }
 
@@ -697,6 +745,19 @@ void show_fps() {
   if(current_time - last_second_time >= 1.0) {
     std::string title{"OpenGL Framework - "};
     title += std::to_string(frames_per_second) + " fps";
+
+    if (ambient == 1.0f)
+    {
+      title += " - Ambient Light";
+    }
+    if (specular == 1.0f)
+    {
+      title += " - Specular Light";
+    }
+    if (diffuse == 1.0f)
+    {
+      title += " - Diffuse Light";
+    }
 
     glfwSetWindowTitle(window, title.c_str());
     frames_per_second = 0;

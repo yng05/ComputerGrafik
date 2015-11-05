@@ -13,6 +13,9 @@ uniform vec3 Color;
 uniform vec3 LightPosition; // world coordinates
 uniform int EmitsLight;
 uniform float Shininess;
+uniform float Ambient;
+uniform float Specular;
+uniform float Diffuse;
 
 out vec4 pass_Normal;
 out vec4 pass_LightDirection;
@@ -20,8 +23,9 @@ out vec4 pass_EyeDirection;
 out vec3 pass_Color;
 out float pass_EmitsLight;
 out float pass_Shininess;
-
-
+out float pass_Ambient;
+out float pass_Specular;
+out float pass_Diffuse;
 
 
 void main(void)
@@ -37,6 +41,10 @@ void main(void)
     pass_Color = Color;
 
     pass_EmitsLight = float(EmitsLight);
+
+    pass_Ambient = Ambient;
+    pass_Specular = Specular;
+    pass_Diffuse = Diffuse;
 
 	gl_Position = p;
 

@@ -6,6 +6,9 @@ in vec4 pass_LightDirection;
 in vec4 pass_EyeDirection;
 in vec3 pass_Color;
 in float pass_Shininess;
+in float pass_Ambient;
+in float pass_Specular;
+in float pass_Diffuse;
 
 in float pass_EmitsLight;
 
@@ -37,11 +40,23 @@ void main(void)
         specular = pow(alpha, pass_Shininess * 4.0f);
     }
 
-    vec3 diffuseLight = diffuse * pass_Color;
+    vec3 diffuseLight = vec3(0.0f, 0.0f, 0.0f);
+    if (pass_Diffuse == 1.0f)
+    {
+        diffuseLight = diffuse * pass_Color;
+    }
 
-    vec3 specularLight = 0.3f * specular * pass_Color;
+    vec3 specularLight = vec3(0.0f, 0.0f, 0.0f);
+    if (pass_Specular == 1.0f)
+    {
+        specularLight = 0.3f * specular * pass_Color;
+    }
 
-    vec3 ambientLight = 0.1f * pass_Color;
+    vec3 ambientLight = vec3(0.0f, 0.0f, 0.0f);
+    if (pass_Ambient == 1.0f)
+    {
+        ambientLight = 0.1f * pass_Color;
+    }
 
     vec3 totalLight = ambientLight + diffuseLight + specularLight;
 
