@@ -2,6 +2,7 @@
 #extension GL_ARB_explicit_attrib_location : require
 // vertex attributes of VAO
 layout(location=0) in vec3 in_Position;
+layout(location=1) in float in_T;
 
 //Matrix Uniforms as specified with glUniformMatrix4fv
 uniform mat4 ModelMatrix;
@@ -10,8 +11,10 @@ uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
 
 out vec4 pass_Normal;
+out float pass_T;
 
 void main(void)
 {
+    pass_T = in_T;
     gl_Position = (ProjectionMatrix  * ViewMatrix * ModelMatrix) * vec4(in_Position, 1.0f);
 }

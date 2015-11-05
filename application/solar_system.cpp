@@ -85,13 +85,14 @@ line_object orbit_line_object;
 
 // holds the structure of the solar system
 struct orb {
-  orb (float r, float sz, float sp, float az, orb* p)
-   : radius(r), size(sz), speed(sp), azimuth(az), parent(p)
+  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl)
+   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), parent(p)
   {}
   float radius = 0;
   float size = 0;
   float speed = 0;
   float azimuth = 0;
+  glm::vec3 color;
   orb* parent = NULL;
 };
 std::vector<orb*> orbs;
@@ -110,6 +111,7 @@ struct simple_program_locations_struct
   GLint location_model_matrix = -1;
   GLint location_view_matrix = -1;
   GLint location_projection_matrix = -1;
+  GLint location_color_vector = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -253,18 +255,18 @@ int main(int argc, char* argv[]) {
 // initialize solar system
 void initialize_solar_system () {
 
-  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL);
-  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun);
-  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun);
-  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun);
-  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun);
-  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun);
-  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun);
-  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun);
-  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun);
-  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun);
+  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f));
+  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f));
+  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f));
+  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f));
+  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f));
+  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f));
+  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f));
+  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f));
+  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f));
+  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f));
 
-  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth);
+  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f));
 
   orbs.push_back(sun);
   orbs.push_back(merkur);
@@ -369,16 +371,19 @@ std::pair<std::vector<float>, std::vector<int>> generate_orbit_line_data (int or
   for (int i=0; i< orbit_line_resolution+1; ++i)
   {
     float t = float(i) / float(orbit_line_resolution);
-    float x = (float) glm::cos(t * 2.0f * M_PI);
-    float y = (float) glm::sin(t * 2.0f * M_PI);
+    float x = (float) glm::cos(t * 4.0f * M_PI);
+    float y = (float) glm::sin(t * 4.0f * M_PI);
     float z = 0;
 
     int first = i;
     int second = (i+1) % orbit_line_resolution;
 
+    std::cout << x << " " << y << std::endl;
+
     data.push_back(x);
     data.push_back(y);
     data.push_back(z);
+    data.push_back(t);
 
     indices.push_back(first);
     indices.push_back(second);
@@ -406,14 +411,22 @@ void initialize_orbit_line_geometry ()
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::POSITION]);
+  uintptr_t offset0 = 0 * sizeof(float);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, /* planet_model.vertex_bytes */ 4 * sizeof(float), /* planet_model.offsets[model::POSITION] */ (const GLvoid*) offset0);
+
+  // activate first attribute on gpu
+  glEnableVertexAttribArray(1);
+  // first attribute is 3 floats with no offset & stride
+  uintptr_t offset1 = 3 * sizeof(float);
+  glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, /* planet_model.vertex_bytes */ 4 * sizeof(float), /* planet_model.offsets[model::POSITION] */ (const GLvoid*) offset1);
+
 
    // generate generic buffer
   glGenBuffers(1, &orbit_line_object.element_BO);
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, orbit_line_object.element_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(GLsizei(model::INDEX.size) * GLsizei(data.second.size())), data.second.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(2 * GLsizei(data.second.size())), data.second.data(), GL_STATIC_DRAW);
 
 }
 
@@ -449,6 +462,8 @@ void render_planets (float t)
     transform = glm::scale(transform, glm::vec3(orb->size));
 
     glUniformMatrix4fv(simple_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+
+    glUniform3f(simple_program_locations.location_color_vector, orb->color.x, orb->color.y, orb->color.z);
 
     normal_transform = glm::inverseTranspose(camera_view * glm::inverse(transform));
     glUniformMatrix4fv(simple_program_locations.location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
@@ -491,8 +506,12 @@ void render_orbit_lines (float t)
 
     }
 
+
     transform = glm::translate(transform, position);
+    transform = glm::rotate(transform, t * orb->speed, glm::vec3(0, 0, 1));
     transform = glm::scale(transform, glm::vec3(orb->radius));
+
+
 
     glUniformMatrix4fv(orbit_line_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
 
@@ -614,6 +633,7 @@ void update_uniform_locations() {
   simple_program_locations.location_model_matrix = glGetUniformLocation(simple_program, "ModelMatrix");
   simple_program_locations.location_view_matrix = glGetUniformLocation(simple_program, "ViewMatrix");
   simple_program_locations.location_projection_matrix = glGetUniformLocation(simple_program, "ProjectionMatrix");
+  simple_program_locations.location_color_vector = glGetUniformLocation(simple_program, "Color");
 
   glUseProgram(starfield_program);
   starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
