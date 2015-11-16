@@ -63,12 +63,12 @@ const unsigned int num_stars = 100000;
 const unsigned int orbit_line_resolution = 1000;
 
 // ambient/specular/diffuse light
-float ambient = 0.0f;
-float specular = 0.0f;
-float diffuse = 0.0f;
+float ambient = 1.0f;
+float specular = 1.0f;
+float diffuse = 1.0f;
 
 // use cell shading
-float use_cell_shading = 0.0f;
+float cell_shading = 0.0f;
 
 // holds gpu representation of model
 struct model_object {
@@ -127,7 +127,7 @@ struct simple_program_locations_struct
   GLint location_ambient_float = -1;
   GLint location_specular_float = -1;
   GLint location_diffuse_float = -1;
-  GLint location_use_cell_shading = -1;
+  GLint location_cell_shading_float = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -466,6 +466,12 @@ void render_planets (float t)
   // shininess is the same for all planets
   glUniform1f(simple_program_locations.location_shininess_float, 10.0f);
 
+  // initial light
+  glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
+  glUniform1f(simple_program_locations.location_diffuse_float, diffuse);
+  glUniform1f(simple_program_locations.location_ambient_float, ambient);
+  glUniform1f(simple_program_locations.location_specular_float, specular);
+
   for (auto orb: orbs)
   {
     glm::mat4 transform;
@@ -663,7 +669,7 @@ void update_uniform_locations() {
   simple_program_locations.location_ambient_float = glGetUniformLocation(simple_program, "Ambient");
   simple_program_locations.location_specular_float = glGetUniformLocation(simple_program, "Specular");
   simple_program_locations.location_diffuse_float = glGetUniformLocation(simple_program, "Diffuse");
-  simple_program_locations.location_use_cell_shading = glGetUniformLocation(simple_program, "UseCellShading");
+  simple_program_locations.location_cell_shading_float = glGetUniformLocation(simple_program, "CellShading");
 
   glUseProgram(starfield_program);
   starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
@@ -712,26 +718,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   // light
   glUseProgram(simple_program);
   if (key == GLFW_KEY_1 && action == GLFW_PRESS)
-  { // ambient light
-    if (ambient == 1.0f) {
-      ambient = 0.0f;
-    } else
-    {
-      ambient = 1.0f;
-    }
-    glUniform1f(simple_program_locations.location_ambient_float, ambient);
+  { // phong shading
+    cell_shading = 0.0f;
+    glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
   }
-  if (key == GLFW_KEY_2 && action == GLFW_PRESS)
-  { // specular light
-    if (specular == 1.0f) {
-      specular = 0.0f;
-    } else
-    {
-      specular = 1.0f;
-    }
-    glUniform1f(simple_program_locations.location_specular_float, specular);
+  else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+  { // cell shading
+    cell_shading = 1.0f;
+    glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
   }
-  if (key == GLFW_KEY_3 && action == GLFW_PRESS)
+  else if (key == GLFW_KEY_3 && action == GLFW_PRESS)
   { // diffuse light
     if (diffuse == 1.0f) {
       diffuse = 0.0f;
@@ -741,15 +737,25 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
     glUniform1f(simple_program_locations.location_diffuse_float, diffuse);
   }
-  if (key == GLFW_KEY_4 && action == GLFW_PRESS)
-  { // diffuse light
-    if (use_cell_shading == 1.0f) {
-      use_cell_shading = 0.0f;
+  else if (key == GLFW_KEY_4 && action == GLFW_PRESS)
+  { // ambient light
+    if (ambient == 1.0f) {
+      ambient = 0.0f;
     } else
     {
-      use_cell_shading = 1.0f;
+      ambient = 1.0f;
     }
-    glUniform1f(simple_program_locations.location_use_cell_shading, use_cell_shading);
+    glUniform1f(simple_program_locations.location_ambient_float, ambient);
+  }
+  else if (key == GLFW_KEY_5 && action == GLFW_PRESS)
+  { // specular light
+    if (specular == 1.0f) {
+      specular = 0.0f;
+    } else
+    {
+      specular = 1.0f;
+    }
+    glUniform1f(simple_program_locations.location_specular_float, specular);
   }
 }
 
@@ -761,7 +767,7 @@ void show_fps() {
     std::string title{"OpenGL Framework - "};
     title += std::to_string(frames_per_second) + " fps";
 
-    if (use_cell_shading == 1.0f)
+    if (cell_shading == 1.0f)
     {
       title += " - Cell Shading";
     }

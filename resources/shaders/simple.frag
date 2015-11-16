@@ -13,7 +13,7 @@ in float pass_Diffuse;
 in float pass_EmitsLight;
 
 in float pass_DiscreteSteps;
-in float pass_UseCellShading;
+in float pass_CellShading;
 
 out vec4 out_Color;
 
@@ -61,7 +61,7 @@ void main(void)
     vec3 totalLight = ambientLight + diffuseLight + specularLight;
 
     // use cell shading
-    if (pass_UseCellShading == 1.0f) {
+    if (pass_CellShading == 1.0f) {
         float l = length(totalLight);
         l = ceil(5.0f * pow(l, 0.5f)) / 5.0f;
         totalLight = normalize(totalLight) * l;
