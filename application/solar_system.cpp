@@ -70,7 +70,7 @@ void quit(int status);
 void update_projection(GLFWwindow* window, int width, int height);
 void update_view();
 void update_uniform_locations();
-void update_shader_programs();
+void update_shader_programs(bool throwing = false);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void initialize_geometry();
 void show_fps();
@@ -115,6 +115,8 @@ int main(int argc, char* argv[]) {
   // activate error checking after each gl function call
   utils::watch_gl_errors();
 
+///////////////////do not use gl* functions before this line!//////////////////
+
   //first argument is resource path
   if (argc > 1) {
     resource_path = argv[1];
@@ -127,7 +129,8 @@ int main(int argc, char* argv[]) {
   }
 
   // do before framebuffer_resize call as it requires the projection uniform location
-  update_shader_programs();
+  // throw exception if shader compilation was unsuccessfull
+  update_shader_programs(true);
 
   // initialize projection and view matrices
   int width, height;
@@ -237,8 +240,9 @@ void update_view() {
 }
 
 // load shaders and update uniform locations
-void update_shader_programs() {
-  try {
+void update_shader_programs(bool throwing) {
+  // actual functionality in lambda to allow update with and without throwing
+  auto update_lambda = [&](){
     // throws exception when compiling was unsuccessfull
     GLuint new_program = shader_loader::program(resource_path + "shaders/simple.vert",
                                                 resource_path + "shaders/simple.frag");
@@ -256,9 +260,18 @@ void update_shader_programs() {
     glfwGetFramebufferSize(window, &width, &height);
     update_projection(window, width, height);
     update_view();
+  };
+
+  if (throwing) {
+    update_lambda();
   }
-  catch(std::exception&) {
-    // dont crash, allow another try
+  else {
+    try {
+     update_lambda();
+    }
+    catch(std::exception&) {
+      // dont crash, allow another try
+    }
   }
 }
 
