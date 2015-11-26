@@ -15,6 +15,8 @@ in float pass_EmitsLight;
 in float pass_DiscreteSteps;
 in float pass_CellShading;
 
+in vec2 pass_TexCoord;
+
 out vec4 out_Color;
 
 void main(void)
@@ -73,5 +75,6 @@ void main(void)
         }
     }
 
-    out_Color = vec4( totalLight, 1.0f);
+    out_Color = vec4 (pass_TexCoord, 0.0f, 1.0f);
+    // out_Color = vec4( totalLight, 1.0f);
 }

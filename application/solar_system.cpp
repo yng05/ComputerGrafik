@@ -317,7 +317,7 @@ void initialize_solar_system () {
 }
 
 void initialize_planet_geometry() {
-  planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL);
+  planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL | model::TEXCOORD);
 
   // generate vertex array object
   glGenVertexArrays(1, &planet_object.vertex_AO);
@@ -339,6 +339,12 @@ void initialize_planet_geometry() {
   glEnableVertexAttribArray(1);
   // second attribute is 3 floats with no offset & stride
   glVertexAttribPointer(1, model::NORMAL.components, model::NORMAL.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::NORMAL]);
+  // activate third attribute on gpu
+  glEnableVertexAttribArray(2);
+  // second attribute is 2 floats with no offset & stride
+  glVertexAttribPointer(2, model::TEXCOORD.components, model::TEXCOORD.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::TEXCOORD]);
+
+
 
    // generate generic buffer
   glGenBuffers(1, &planet_object.element_BO);

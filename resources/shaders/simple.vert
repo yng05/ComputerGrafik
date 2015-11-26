@@ -3,7 +3,7 @@
 // vertex attributes of VAO
 layout(location=0) in vec3 in_Position;
 layout(location=1) in vec3 in_Normal;
-
+layout(location=2) in vec2 in_TexCoord;
 //Matrix Uniforms as specified with glUniformMatrix4fv
 uniform mat4 ModelMatrix;
 uniform mat4 ViewMatrix;
@@ -28,6 +28,7 @@ out float pass_Ambient;
 out float pass_Specular;
 out float pass_Diffuse;
 out float pass_CellShading;
+out vec2 pass_TexCoord;
 
 
 void main(void)
@@ -45,6 +46,8 @@ void main(void)
     pass_Color = Color;
 
     pass_EmitsLight = float(EmitsLight);
+
+    pass_TexCoord = in_TexCoord;
 
     pass_Ambient = Ambient;
     pass_Specular = Specular;
