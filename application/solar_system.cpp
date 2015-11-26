@@ -110,7 +110,9 @@ std::vector<orb*> orbs;
 glm::vec3 camera_position(10.0f, 0.0f, 0.0f);
 
 // camera matrices
+
 glm::mat4 camera_view = glm::translate(glm::mat4{}, glm::vec3{0.0f, 0.0f, 2.0f});
+
 glm::mat4 camera_projection{1.0f};
 
 // uniform locations
@@ -152,8 +154,10 @@ void quit(int status);
 void update_view(GLFWwindow* window, int width, int height);
 void update_camera();
 void update_uniform_locations();
+
 void update_shader_programs();
 void update_camera_position(GLFWwindow* window, int width, int height);
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void initialize_solar_system();
 void initialize_geometry();
@@ -182,13 +186,17 @@ int main(int argc, char* argv[]) {
     std::exit(EXIT_FAILURE);
   }
 
+
 //on MacOS, set OGL version explicitly
 // #ifdef __APPLE__
+
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, true);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
 // #endif
+
 
   // create window, if unsuccessfull, quit
   window = glfwCreateWindow(window_width, window_height, "OpenGL Framework", NULL, NULL);
@@ -214,6 +222,8 @@ int main(int argc, char* argv[]) {
   // activate error checking after each gl function call
   utils::watch_gl_errors();
 
+///////////////////do not use gl* functions before this line!//////////////////
+
   //first argument is resource path
   if (argc > 1) {
     resource_path = argv[1];
@@ -228,6 +238,7 @@ int main(int argc, char* argv[]) {
 
 
   // do before framebuffer_resize call as it requires the projection uniform location
+  // throw exception if shader compilation was unsuccessfull
   update_shader_programs();
 
   // initialize projection and view matrices
@@ -552,12 +563,14 @@ void render_orbit_lines (float t)
 
 // render model
 void render() {
+
   float factor = 1.0f;
   float t = factor * (float) glfwGetTime();
 
   render_stars();
   render_planets(t);
   render_orbit_lines(t);
+
 
 }
 
@@ -590,12 +603,14 @@ void update_view(GLFWwindow* window, int width, int height) {
 }
 
 // update camera transformation
+
 void update_camera() {
   glm::vec3 eye = from_spherical(camera_position);
   glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
   glm::vec3 up(0.0f, 1.0f, 0.0f);
 
   camera_view = glm::inverse(glm::lookAt(eye, center, up));
+
 
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::mat4 inv_camera_view = glm::inverse(camera_view);
@@ -611,6 +626,7 @@ void update_camera() {
 }
 
 // load shaders and update uniform locations
+
 void update_shader_programs() {
 
   std::vector<std::pair<std::pair<std::string, std::string>, GLuint*>> shaders {
@@ -649,9 +665,9 @@ void update_shader_programs() {
       glfwGetFramebufferSize(window, &width, &height);
       update_view(window, width, height);
       update_camera();
-  }
-  catch(std::exception&) {
-    // dont crash, allow another try
+
+  } catch (std::exception& e) {
+
   }
 }
 
@@ -705,6 +721,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   {
     update_shader_programs();
   }
+
   else if(key == GLFW_KEY_W && action == GLFW_PRESS)
   {
     camera_position.x -= 1;
