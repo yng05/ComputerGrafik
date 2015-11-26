@@ -93,8 +93,8 @@ line_object orbit_line_object;
 
 // holds the structure of the solar system
 struct orb {
-  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el)
-   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), emitsLight(el), parent(p)
+  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el, texture t)
+   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), emitsLight(el), parent(p), tex(t)
   {}
   float radius = 0;
   float size = 0;
@@ -103,6 +103,7 @@ struct orb {
   glm::vec3 color;
   bool emitsLight = false;
   orb* parent = NULL;
+  texture tex;
 };
 std::vector<orb*> orbs;
 
@@ -282,18 +283,18 @@ int main(int argc, char* argv[]) {
 // initialize solar system
 void initialize_solar_system () {
 
-  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true);
-  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false);
-  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false);
-  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false);
-  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false);
-  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false);
-  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false);
-  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false);
-  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false);
-  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false);
+  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/sunmap.jpg"));
+  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false, texture_loader::file(resource_path + "textures/mercurymap.jpg"));
+  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false, texture_loader::file(resource_path + "textures/venusmap.jpg"));
+  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false, texture_loader::file(resource_path + "textures/earthmap1k.jpg"));
+  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false, texture_loader::file(resource_path + "textures/marsmap1k.jpg"));
+  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/jupitermap.jpg"));
+  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/saturnmap.jpg"));
+  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/uranusmap.jpg"));
+  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false, texture_loader::file(resource_path + "textures/neptunemap.jpg"));
+  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false, texture_loader::file(resource_path + "textures/plutomap1k.jpg"));
 
-  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false);
+  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false, texture_loader::file(resource_path + "textures/moonmap1k.jpg"));
 
   orbs.push_back(sun);
   orbs.push_back(merkur);
