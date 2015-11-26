@@ -1,80 +1,100 @@
 #version 150
 
-in vec4 pass_Position;
+uniform sampler2D ColorTex;
+uniform sampler2D NormalTex;
+
+uniform vec3 Color;
+uniform vec3 LightPosition; // world coordinates
+uniform int EmitsLight;
+uniform float Shininess;
+uniform float Ambient;
+uniform float Specular;
+uniform float Diffuse;
+uniform float CellShading;
+
 in vec4 pass_Normal;
 in vec4 pass_LightDirection;
 in vec4 pass_EyeDirection;
-in vec3 pass_Color;
-in float pass_Shininess;
-in float pass_Ambient;
-in float pass_Specular;
-in float pass_Diffuse;
-
-in float pass_EmitsLight;
-
-in float pass_DiscreteSteps;
-in float pass_CellShading;
-
 in vec2 pass_TexCoord;
+
+in mat3 pass_TangentMatrix;
 
 out vec4 out_Color;
 
 void main(void)
 {
+    vec4 textureColor = texture(ColorTex, pass_TexCoord);
+
+    vec3 detailNormal = texture(NormalTex, pass_TexCoord).rgb;
+    detailNormal = 2.0f * (detailNormal - vec3(0.5f));
+
+    vec4 normal = vec4(normalize(pass_TangentMatrix * detailNormal), 0.0f);
+
+    // normal = pass_Normal;
+
     float diffuse;
-    if (pass_EmitsLight == 1.0f)
+    if (EmitsLight == 1.0f)
     {
         diffuse = 1.0f;
     }
     else
     {
-        diffuse = dot(pass_Normal, pass_LightDirection);
+        diffuse = max(0, dot(normal, pass_LightDirection));
     }
 
     float specular;
-    if (pass_EmitsLight == 1.0f) {
+    if (EmitsLight == 1.0f) {
         specular = 0.0f;
     }
     else
     {
         vec3 h = normalize(pass_LightDirection.xyz + pass_EyeDirection.xyz);
-        float alpha = max(dot(h, pass_Normal.xyz), 0.0f);
-        specular = pow(alpha, pass_Shininess * 4.0f);
+        float alpha = max(dot(h, normal.xyz), 0.0f);
+        specular = pow(alpha, Shininess * 4.0f);
     }
 
     vec3 diffuseLight = vec3(0.0f, 0.0f, 0.0f);
-    if (pass_Diffuse == 1.0f)
+    if (Diffuse == 1.0f)
     {
-        diffuseLight = diffuse * pass_Color;
+        diffuseLight = diffuse * textureColor.rgb;
     }
 
     vec3 specularLight = vec3(0.0f, 0.0f, 0.0f);
-    if (pass_Specular == 1.0f)
+    if (Specular == 1.0f)
     {
-        specularLight = 0.3f * specular * pass_Color;
+        specularLight = 0.3f * specular * vec3(1.0f);
     }
 
     vec3 ambientLight = vec3(0.0f, 0.0f, 0.0f);
-    if (pass_Ambient == 1.0f)
+    if (Ambient == 1.0f)
     {
-        ambientLight = 0.1f * pass_Color;
+        ambientLight = 0.1f * textureColor.rgb;
     }
 
     vec3 totalLight = ambientLight + diffuseLight + specularLight;
 
     // use cell shading
-    if (pass_CellShading == 1.0f) {
+    if (CellShading == 1.0f) {
         float l = length(totalLight);
         l = ceil(5.0f * pow(l, 0.5f)) / 5.0f;
         totalLight = normalize(totalLight) * l;
 
-        float toonThreshold = dot(pass_Normal.xyz, pass_EyeDirection.xyz);
+        float toonThreshold = dot(normal.xyz, pass_EyeDirection.xyz);
         if (toonThreshold > 0.0f && toonThreshold < 0.4f)
         {
             totalLight = vec3(1.0f, 0.0f, 0.0f);
         }
     }
 
-    out_Color = vec4 (pass_TexCoord, 0.0f, 1.0f);
-    // out_Color = vec4( totalLight, 1.0f);
+    
+
+
+    // out_Color = vec4(pass_TexCoord, 0.0f, 1.0f);
+    // out_Color = vec4 (color.rgb / 2, 1.0f);
+    // out_Color = vec4( normal.rgb, 1.0f);
+    out_Color = vec4(totalLight, 1.0f);
+
+    // out_Color = vec4( texture(NormalTex, pass_TexCoord).rgb, 1.0f);
+
+    //out_Color = vec4( 1.0f);
 }

@@ -78,6 +78,20 @@ struct model_object {
 };
 model_object planet_object;
 
+// holds gpu representation of planet color textures
+struct texture_object {
+
+  texture_object (texture const& t)
+   : tex(t)
+  {}
+
+  GLenum context = GL_TEXTURE0;
+  GLenum target = GL_TEXTURE_2D;
+  GLuint obj_ptr = 0;
+  texture tex;
+};
+std::vector<texture_object> planet_textures;
+
 struct point_cloud_object {
   GLuint vertex_AO = 0;
   GLuint vertex_BO = 0;
@@ -93,8 +107,9 @@ line_object orbit_line_object;
 
 // holds the structure of the solar system
 struct orb {
-  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el, texture t)
-   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), emitsLight(el), parent(p), tex(t)
+  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el, texture const& ct, texture const& nt)
+   : radius(r), size(sz), speed(sp), azimuth(az), color(cl), emitsLight(el), parent(p)
+   , color_tex_obj(ct), normal_tex_obj(nt)
   {}
   float radius = 0;
   float size = 0;
@@ -103,12 +118,17 @@ struct orb {
   glm::vec3 color;
   bool emitsLight = false;
   orb* parent = NULL;
-  texture tex;
+
+  texture_object color_tex_obj;
+  texture_object normal_tex_obj;
 };
 std::vector<orb*> orbs;
 
 // holds current camera position in spherical coordinates
 glm::vec3 camera_position(10.0f, 0.0f, 0.0f);
+
+glm::vec3 camera_center (0.0f);
+int selected_center_orb = 0;
 
 // camera matrices
 
@@ -131,6 +151,8 @@ struct simple_program_locations_struct
   GLint location_specular_float = -1;
   GLint location_diffuse_float = -1;
   GLint location_cell_shading_float = -1;
+  GLint location_color_tex = -1;
+  GLint location_normal_tex = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -162,11 +184,12 @@ void update_camera_position(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void initialize_solar_system();
 void initialize_geometry();
+void initialize_planet_textures();
 void show_fps();
 void render();
 
 // helper
-glm::vec3 from_spherical(glm::vec3 const& c)
+glm::vec3 from_spherical(glm::vec3 const& c, glm::vec3 const& origin)
 {
   glm::mat4 t;
 
@@ -176,7 +199,7 @@ glm::vec3 from_spherical(glm::vec3 const& c)
   t = glm::rotate(t, phi, glm::vec3(0.0, 1.0, 0.0));
   t = glm::rotate(t, theta, glm::vec3(1.0, 0.0, 0.0));
 
-  return glm::vec3(t * glm::vec4(glm::vec3(0, 0, c.x), 1.0));
+  return origin + glm::vec3(t * glm::vec4(glm::vec3(0, 0, c.x), 1.0));
 }
 
 /////////////////////////////// main function /////////////////////////////////
@@ -251,6 +274,10 @@ int main(int argc, char* argv[]) {
   // set up solar system
   initialize_solar_system();
 
+
+  // initialize textures
+  initialize_planet_textures();
+
   // set up models
   initialize_geometry();
 
@@ -283,18 +310,23 @@ int main(int argc, char* argv[]) {
 // initialize solar system
 void initialize_solar_system () {
 
-  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/sunmap.jpg"));
-  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false, texture_loader::file(resource_path + "textures/mercurymap.jpg"));
-  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false, texture_loader::file(resource_path + "textures/venusmap.jpg"));
-  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false, texture_loader::file(resource_path + "textures/earthmap1k.jpg"));
-  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false, texture_loader::file(resource_path + "textures/marsmap1k.jpg"));
-  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/jupitermap.jpg"));
-  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/saturnmap.jpg"));
-  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/uranusmap.jpg"));
-  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false, texture_loader::file(resource_path + "textures/neptunemap.jpg"));
-  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false, texture_loader::file(resource_path + "textures/plutomap1k.jpg"));
+  texture normal_texture = texture_loader::file(resource_path + "textures/normalmap.png");
 
-  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false, texture_loader::file(resource_path + "textures/moonmap1k.jpg"));
+  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/sunmap.png"), normal_texture);
+  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false, texture_loader::file(resource_path + "textures/mercurymap.png"), normal_texture);
+  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false, texture_loader::file(resource_path + "textures/venusmap.png"), normal_texture);
+  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false, texture_loader::file(resource_path + "textures/earthmap1k.png"), normal_texture);
+  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false, texture_loader::file(resource_path + "textures/face.png"), normal_texture);
+  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/jupitermap.png"), normal_texture);
+  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/saturnmap.png"), normal_texture);
+  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/uranusmap.png"), normal_texture);
+  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false, texture_loader::file(resource_path + "textures/neptunemap.png"), normal_texture);
+  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false, texture_loader::file(resource_path + "textures/plutomap1k.png"), normal_texture);
+
+  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false, texture_loader::file(resource_path + "textures/moonmap1k.png"), normal_texture);
+
+
+  orb* universe = new orb(0.0f,  500.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/galaxy.png"), normal_texture);
 
   orbs.push_back(sun);
   orbs.push_back(merkur);
@@ -309,16 +341,78 @@ void initialize_solar_system () {
 
   orbs.push_back(moon);
 
+  orbs.push_back(universe);
+
   for (auto& orb: orbs) {
     if (orb->radius > 0 && orb->size > 0) {
       orb->speed = 1 / (orb->size * orb->radius);
     }
   }
-
 }
 
+
+void initialize_planet_textures () {
+
+  for (auto orb: orbs) {
+
+    // initialize color texture
+    
+    // select the current texture context
+    glActiveTexture(GL_TEXTURE0);
+
+    // generate a new texture object
+    glGenTextures(1, &orb->color_tex_obj.obj_ptr);
+
+    // bind the texture to the current context and target
+    glBindTexture(orb->color_tex_obj.tex.target, orb->color_tex_obj.obj_ptr);
+
+    // set texture sampling parameters
+    glTexParameteri(orb->color_tex_obj.tex.target, GL_TEXTURE_MIN_FILTER, GLint(GL_LINEAR));
+    glTexParameteri(orb->color_tex_obj.tex.target, GL_TEXTURE_MAG_FILTER, GLint(GL_LINEAR));
+
+    glTexImage2D(orb->color_tex_obj.tex.target,
+      0, // mipmaps
+      GLint(GL_RGBA),
+      orb->color_tex_obj.tex.width, orb->color_tex_obj.tex.height,
+      0, // no border
+      GL_RGBA,
+      orb->color_tex_obj.tex.channel_type,
+      orb->color_tex_obj.tex.data.data()
+    );
+
+    // initialize normal texture
+    
+    // select the current texture context
+    glActiveTexture(GL_TEXTURE1);
+
+    // generate a new texture object
+    glGenTextures(1, &orb->normal_tex_obj.obj_ptr);
+
+    // bind the texture to the current context and target
+    glBindTexture(orb->normal_tex_obj.tex.target, orb->normal_tex_obj.obj_ptr);
+
+    // set texture sampling parameters
+    glTexParameteri(orb->normal_tex_obj.tex.target, GL_TEXTURE_MIN_FILTER, GLint(GL_LINEAR));
+    glTexParameteri(orb->normal_tex_obj.tex.target, GL_TEXTURE_MAG_FILTER, GLint(GL_LINEAR));
+
+    glTexImage2D(orb->normal_tex_obj.tex.target,
+      0, // mipmaps
+      GLint(GL_RGBA),
+      orb->normal_tex_obj.tex.width, orb->normal_tex_obj.tex.height,
+      0, // no border
+      GL_RGBA,
+      orb->normal_tex_obj.tex.channel_type,
+      orb->normal_tex_obj.tex.data.data()
+    );
+
+  }
+
+
+} 
+
 void initialize_planet_geometry() {
-  planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL | model::TEXCOORD);
+  planet_model = model_loader::obj(resource_path + "models/sphere.obj", model::NORMAL | model::TEXCOORD | model::TANGENT | model::BITANGENT);
+
 
   // generate vertex array object
   glGenVertexArrays(1, &planet_object.vertex_AO);
@@ -344,6 +438,16 @@ void initialize_planet_geometry() {
   glEnableVertexAttribArray(2);
   // second attribute is 2 floats with no offset & stride
   glVertexAttribPointer(2, model::TEXCOORD.components, model::TEXCOORD.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::TEXCOORD]);
+
+  // activate fourth attribute on gpu
+  glEnableVertexAttribArray(3);
+  // second attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(3, model::TANGENT.components, model::TANGENT.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::TANGENT]);
+
+  // activate fifth attribute on gpu
+  glEnableVertexAttribArray(4);
+  // second attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(4, model::BITANGENT.components, model::BITANGENT.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::BITANGENT]);
 
 
 
@@ -482,7 +586,7 @@ void render_planets (float t)
   glUniform3f(simple_program_locations.location_light_vector, 0.0f, 0.0f, 0.0f);
 
   // shininess is the same for all planets
-  glUniform1f(simple_program_locations.location_shininess_float, 10.0f);
+  glUniform1f(simple_program_locations.location_shininess_float, 40.0f);
 
   // initial light
   glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
@@ -490,30 +594,66 @@ void render_planets (float t)
   glUniform1f(simple_program_locations.location_ambient_float, ambient);
   glUniform1f(simple_program_locations.location_specular_float, specular);
 
-  for (auto orb: orbs)
+  for (unsigned long i=0; i<orbs.size(); ++i)
   {
+
+    auto orb = orbs[i];
+
     glm::mat4 transform;
     glm::mat4 normal_transform;
     glm::vec3 position;
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(orb->color_tex_obj.tex.target, orb->color_tex_obj.obj_ptr);
+    glUniform1i(simple_program_locations.location_color_tex, 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(orb->normal_tex_obj.tex.target, orb->normal_tex_obj.obj_ptr);
+    glUniform1i(simple_program_locations.location_normal_tex, 1);
+
+    // scale the planet
+    transform = glm::scale(transform, glm::vec3(1.0f/orb->size));
+
+    // init planet with right rotation  
+    // transform = glm::rotate(transform, float(-M_PI/6.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    
+    // spin of the planet
+    transform = glm::rotate(transform, t * orb->speed * 10.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+
+
     auto current = orb;
     while (current != NULL)
     {
-      position.x += glm::cos(t * current->speed) * current->radius;
-      position.y += glm::sin(t * current->speed) * current->radius;
+      // translate the planet to its orbit
+      transform = glm::translate(transform, current->radius * glm::vec3(1.0f, 0.0f, 0.0f));
+
+      // rotate the planet around its orbit
+      transform = glm::rotate(transform, -t * current->speed, glm::vec3(0.0f, 0.0f, 1.0f));
+
+      // as long as we have a parent, apply its transformation too
       current = current->parent;
     }
 
-    transform = glm::translate(transform, position);
-    transform = glm::scale(transform, glm::vec3(orb->size));
+    // application order of the model transformation is reversed to its definition
+    transform = glm::inverse(transform);
 
+    if (selected_center_orb == i) 
+    {
+      camera_center = glm::vec3(transform * glm::vec4(glm::vec3(0.0f), 1.0f));
+    }
+
+    // sent the model matrix to the shader
     glUniformMatrix4fv(simple_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
+
+    // calculate the correct normal transformation
+    normal_transform = glm::inverseTranspose(glm::inverse(camera_view) * transform);
+
+    // send the noraml matrix to the shader
+    glUniformMatrix4fv(simple_program_locations.location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
+
 
     glUniform3f(simple_program_locations.location_color_vector, orb->color.x, orb->color.y, orb->color.z);
     glUniform1i(simple_program_locations.location_emits_light_bool, orb->emitsLight);
-
-    normal_transform = glm::inverseTranspose(glm::inverse(camera_view) * transform);
-    glUniformMatrix4fv(simple_program_locations.location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
 
     glBindVertexArray(planet_object.vertex_AO);
     utils::validate_program(simple_program);
@@ -544,20 +684,27 @@ void render_orbit_lines (float t)
     glm::mat4 normal_transform;
     glm::vec3 position;
 
-    auto current = orb;
-    while (current->parent != NULL)
-    {
-      current = current->parent;
-      position.x += glm::cos(t * current->speed) * current->radius;
-      position.y += glm::sin(t * current->speed) * current->radius;
+    // rotate the orbit around its center
+    transform = glm::rotate(transform, -t * orb->speed, glm::vec3(0.0f, 0.0f, 1.0f));
 
+    // scale the orbit circle to the radius of the orbit of the planet
+    transform = glm::scale(transform, glm::vec3(-1 / orb->radius));
+
+    auto current = orb->parent;
+    while (current != NULL)
+    {
+      // translate the orbit to the its orbit center
+      transform = glm::translate(transform, current->radius * glm::vec3(1.0f, 0.0f, 0.0f));
+
+      // rotate the orbit around its orbit center
+      transform = glm::rotate(transform, -t * current->speed, glm::vec3(0.0f, 0.0f, 1.0f));
+
+      // as long as we have a parent, apply its transformation too
+      current = current->parent;
     }
 
-
-    transform = glm::translate(transform, position);
-    transform = glm::rotate(transform, t * orb->speed, glm::vec3(0, 0, 1));
-    transform = glm::scale(transform, glm::vec3(orb->radius));
-
+    // application order of the model transformation is reversed to its definition
+    transform = glm::inverse(transform);
 
 
     glUniformMatrix4fv(orbit_line_program_locations.location_model_matrix, 1, GL_FALSE, glm::value_ptr(transform));
@@ -612,8 +759,8 @@ void update_view(GLFWwindow* window, int width, int height) {
 // update camera transformation
 
 void update_camera() {
-  glm::vec3 eye = from_spherical(camera_position);
-  glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3 eye = from_spherical(camera_position, camera_center);
+  glm::vec3 center = camera_center; // glm::vec3(0.0f, 0.0f, 0.0f);
   glm::vec3 up(0.0f, 1.0f, 0.0f);
 
   camera_view = glm::inverse(glm::lookAt(eye, center, up));
@@ -642,7 +789,7 @@ void update_shader_programs() {
     { {"shaders/lines.vert",      "shaders/lines.frag"},      &orbit_line_program }
   };
 
-  try {
+  try {  
     for (auto p: shaders) {
 
       auto vertex_path = p.first.first;
@@ -693,6 +840,9 @@ void update_uniform_locations() {
   simple_program_locations.location_specular_float = glGetUniformLocation(simple_program, "Specular");
   simple_program_locations.location_diffuse_float = glGetUniformLocation(simple_program, "Diffuse");
   simple_program_locations.location_cell_shading_float = glGetUniformLocation(simple_program, "CellShading");
+  simple_program_locations.location_color_tex = glGetUniformLocation(simple_program, "ColorTex");
+  simple_program_locations.location_normal_tex = glGetUniformLocation(simple_program, "NormalTex");
+
 
   glUseProgram(starfield_program);
   starfield_program_locations.location_model_matrix = glGetUniformLocation(starfield_program, "ModelMatrix");
@@ -739,6 +889,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     camera_position.x += 1;
     update_camera();
   }
+
+  else if (key == GLFW_KEY_K && action == GLFW_PRESS)
+  {
+    selected_center_orb = glm::min(int(selected_center_orb + 1), int(orbs.size()-2));
+  }
+  else if (key == GLFW_KEY_L && action == GLFW_PRESS)
+  {
+    selected_center_orb = glm::max(int(selected_center_orb - 1), int(0));
+  }
+
   // light
   glUseProgram(simple_program);
   if (key == GLFW_KEY_1 && action == GLFW_PRESS)

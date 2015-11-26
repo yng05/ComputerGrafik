@@ -2,6 +2,7 @@
 
 // use floats and med precision operations
 #define GLM_PRECISION_MEDIUMP_FLOAT
+#include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 #include <glm/geometric.hpp>
 
@@ -11,7 +12,7 @@ namespace model_loader {
 
 void generate_normals(tinyobj::mesh_t& model);
 
-std::vector<glm::vec3> generate_tangents(tinyobj::mesh_t const& model);
+std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> generate_tangents(tinyobj::mesh_t const& model);
 
 model obj(std::string const& name, model::attrib_flag_t import_attribs){
   std::vector<tinyobj::shape_t> shapes;
@@ -30,13 +31,18 @@ model obj(std::string const& name, model::attrib_flag_t import_attribs){
 
   model::attrib_flag_t attributes{model::POSITION | import_attribs};
 
-  if(import_attribs & model::TANGENT) {
-    // create tangents and bitangents?
-    throw std::invalid_argument("Attribute nr. " + std::to_string(model::TANGENT) + "not supported");
-  }
+  // if(import_attribs & model::TANGENT) {
+  //   // create tangents and bitangents?
+  //   throw std::invalid_argument("Attribute nr. " + std::to_string(model::TANGENT) + "not supported");
+
+
+  // }
 
   std::vector<float> vertex_data;
   std::vector<unsigned> triangles;
+
+  std::vector<glm::vec3> tangents;
+  std::vector<glm::vec3> bitangents;
 
   GLuint vertex_offset = 0;
 
@@ -60,6 +66,16 @@ model obj(std::string const& name, model::attrib_flag_t import_attribs){
       }
     }
 
+    bool has_tangents = (import_attribs & model::TANGENT);
+    if (has_normals && has_tangents) {
+      auto p_bt = generate_tangents(curr_mesh);
+      tangents = p_bt.first;
+      bitangents = p_bt.second;
+
+      // attributes ^= model::TANGENT;
+      // attributes ^= model::BITANGENT;
+    }
+
     // push back vertex attributes
     for (unsigned i = 0; i < curr_mesh.positions.size() / 3; ++i) {
       vertex_data.push_back(curr_mesh.positions[i * 3]);
@@ -75,6 +91,16 @@ model obj(std::string const& name, model::attrib_flag_t import_attribs){
       if (has_uvs) {
         vertex_data.push_back(curr_mesh.texcoords[i * 2]);
         vertex_data.push_back(curr_mesh.texcoords[i * 2 + 1]);
+      }
+
+      if (has_tangents) {
+        vertex_data.push_back(tangents[i].x);
+        vertex_data.push_back(tangents[i].y);
+        vertex_data.push_back(tangents[i].z);
+
+        vertex_data.push_back(bitangents[i].x);
+        vertex_data.push_back(bitangents[i].y);
+        vertex_data.push_back(bitangents[i].z);
       }
     }
 
@@ -114,12 +140,13 @@ void generate_normals(tinyobj::mesh_t& model) {
   }
 }
 
-std::vector<glm::vec3> generate_tangents(tinyobj::mesh_t const& model) {
+std::pair<std::vector<glm::vec3>, std::vector<glm::vec3>> generate_tangents(tinyobj::mesh_t const& model) {
   // containers for vetex attributes
   std::vector<glm::vec3> positions(model.positions.size() / 3);
   std::vector<glm::vec3> normals(model.positions.size() / 3);
   std::vector<glm::vec2> texcoords(model.positions.size() / 3);
   std::vector<glm::vec3> tangents(model.positions.size() / 3, glm::vec3{0.0f});
+  std::vector<glm::vec3> bitangents(model.positions.size() / 3);
 
   // get vertex positions and texture coordinates from mesh_t
   for (unsigned i = 0; i < model.positions.size(); i+=3) {
@@ -142,13 +169,45 @@ std::vector<glm::vec3> generate_tangents(tinyobj::mesh_t const& model) {
                            model.indices[i * 3 + 2]};
     
     // implement tangent calculation here
+    auto p0 = positions[indices[0]];
+    auto p1 = positions[indices[1]];
+    auto p2 = positions[indices[2]];
+
+    auto uv0 = texcoords[indices[0]];
+    auto uv1 = texcoords[indices[1]];
+    auto uv2 = texcoords[indices[2]];
+
+    auto duv1 = uv1 - uv0;
+    auto duv2 = uv2 - uv0;
+
+    auto dp1 = p1 - p0;
+    auto dp2 = p2 - p0;
+
+    auto f = 1 / (duv1.x * duv2.y - duv2.x * duv1.y);
+    glm::mat2x2 A {{duv2.y, -duv1.y}, {-duv2.x, duv1.x}};
+    glm::mat3x2 B = glm::transpose(glm::mat2x3{dp1, dp2});
+
+    auto TB = glm::transpose(f * A * B);
+
+    auto tangent = glm::normalize(TB[0]);
+
+    tangents[indices[0]] = tangent;
+    tangents[indices[1]] = tangent;
+    tangents[indices[2]] = tangent;
   }
 
   for (unsigned i = 0; i < tangents.size(); ++i) {
     // implement orthogonalization and normalization here
+    auto n = normals[i];
+    auto t = tangents[i];
+    t = t - n * glm::dot(n, t);
+    tangents[i] = t;
+    bitangents[i] = glm::cross(n, t);
   }
 
-  return tangents;
+  return std::make_pair(tangents, bitangents);
 }
+
+
 
 };
