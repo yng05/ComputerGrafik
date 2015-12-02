@@ -63,12 +63,12 @@ const unsigned int num_stars = 100000;
 const unsigned int orbit_line_resolution = 1000;
 
 // ambient/specular/diffuse light
-float ambient = 1.0f;
-float specular = 1.0f;
-float diffuse = 1.0f;
+bool ambient = true;
+bool specular = true;
+bool diffuse = true;
 
 // use cell shading
-float cell_shading = 0.0f;
+bool cell_shading = false;
 
 // holds gpu representation of model
 struct model_object {
@@ -107,9 +107,9 @@ line_object orbit_line_object;
 
 // holds the structure of the solar system
 struct orb {
-  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el, texture const& ct, texture const& nt)
+  orb (float r, float sz, float sp, float az, orb* p, glm::vec3 const& cl, bool el, texture const& ct, texture const& nt, bool ncb)
    : radius(r), size(sz), speed(sp), azimuth(az), color(cl), emitsLight(el), parent(p)
-   , color_tex_obj(ct), normal_tex_obj(nt)
+   , color_tex_obj(ct), normal_tex_obj(nt), no_cell_border(ncb)
   {}
   float radius = 0;
   float size = 0;
@@ -119,8 +119,11 @@ struct orb {
   bool emitsLight = false;
   orb* parent = NULL;
 
+
   texture_object color_tex_obj;
   texture_object normal_tex_obj;
+
+  bool no_cell_border = false;
 };
 std::vector<orb*> orbs;
 
@@ -153,6 +156,7 @@ struct simple_program_locations_struct
   GLint location_cell_shading_float = -1;
   GLint location_color_tex = -1;
   GLint location_normal_tex = -1;
+  GLint location_no_cell_border_bool = -1;
 } simple_program_locations;
 
 struct starfield_program_locations_struct
@@ -312,21 +316,21 @@ void initialize_solar_system () {
 
   texture normal_texture = texture_loader::file(resource_path + "textures/normalmap.png");
 
-  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/sunmap.png"), normal_texture);
-  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false, texture_loader::file(resource_path + "textures/mercurymap.png"), normal_texture);
-  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false, texture_loader::file(resource_path + "textures/venusmap.png"), normal_texture);
-  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false, texture_loader::file(resource_path + "textures/earthmap1k.png"), normal_texture);
-  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false, texture_loader::file(resource_path + "textures/face.png"), normal_texture);
-  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/jupitermap.png"), normal_texture);
-  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/saturnmap.png"), normal_texture);
-  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/uranusmap.png"), normal_texture);
-  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false, texture_loader::file(resource_path + "textures/neptunemap.png"), normal_texture);
-  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false, texture_loader::file(resource_path + "textures/plutomap1k.png"), normal_texture);
+  orb* sun =      new orb(0.0f,  1.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/sunmap.png"), normal_texture, false);
+  orb* merkur =   new orb(2.0f,  0.15f, 2.5f, 0.1f,  sun, glm::vec3(0.8f, 0.6f, 0.7f), false, texture_loader::file(resource_path + "textures/mercurymap.png"), normal_texture, false);
+  orb* venus =    new orb(4.0f,  0.2f, 2.0f, 0.1f,  sun,  glm::vec3(0.6f, 0.8f, 0.7f), false, texture_loader::file(resource_path + "textures/venusmap.png"), normal_texture, false);
+  orb* earth =    new orb(6.0f,  0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.0f, 0.5f, 1.0f), false, texture_loader::file(resource_path + "textures/earthmap1k.png"), normal_texture, false);
+  orb* mars =     new orb(8.0f,  0.25f, 1.0f, 0.3f, sun,  glm::vec3(1.0f, 0.4f, 0.0f), false, texture_loader::file(resource_path + "textures/marsmap1k.png"), normal_texture, false);
+  orb* jupiter =  new orb(10.0f, 0.7f, 1.0f, 0.3f,  sun,  glm::vec3(0.8f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/jupitermap.png"), normal_texture, false);
+  orb* saturn =   new orb(12.0f, 0.6f, 1.0f, 0.3f,  sun,  glm::vec3(0.6f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/saturnmap.png"), normal_texture, false);
+  orb* uranus =   new orb(14.0f, 0.5f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.5f, 0.6f), false, texture_loader::file(resource_path + "textures/uranusmap.png"), normal_texture, false);
+  orb* neptun =   new orb(16.0f, 0.3f, 1.0f, 0.3f,  sun,  glm::vec3(0.4f, 0.6f, 0.6f), false, texture_loader::file(resource_path + "textures/neptunemap.png"), normal_texture, false);
+  orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false, texture_loader::file(resource_path + "textures/plutomap1k.png"), normal_texture, false);
 
-  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false, texture_loader::file(resource_path + "textures/moonmap1k.png"), normal_texture);
+  orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false, texture_loader::file(resource_path + "textures/moonmap1k.png"), normal_texture, false);
 
 
-  orb* universe = new orb(0.0f,  500.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/galaxy.png"), normal_texture);
+  orb* universe = new orb(0.0f,  500.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/galaxy.png"), normal_texture, true);
 
   orbs.push_back(sun);
   orbs.push_back(merkur);
@@ -586,7 +590,7 @@ void render_planets (float t)
   glUniform3f(simple_program_locations.location_light_vector, 0.0f, 0.0f, 0.0f);
 
   // shininess is the same for all planets
-  glUniform1f(simple_program_locations.location_shininess_float, 40.0f);
+  glUniform1f(simple_program_locations.location_shininess_float, 10.0f);
 
   // initial light
   glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
@@ -651,6 +655,8 @@ void render_planets (float t)
     // send the noraml matrix to the shader
     glUniformMatrix4fv(simple_program_locations.location_normal_matrix, 1, GL_FALSE, glm::value_ptr(normal_transform));
 
+
+    glUniform1i(simple_program_locations.location_no_cell_border_bool, orb->no_cell_border);
 
     glUniform3f(simple_program_locations.location_color_vector, orb->color.x, orb->color.y, orb->color.z);
     glUniform1i(simple_program_locations.location_emits_light_bool, orb->emitsLight);
@@ -718,7 +724,7 @@ void render_orbit_lines (float t)
 // render model
 void render() {
 
-  float factor = 1.0f;
+  float factor = 0.1f;
   float t = factor * (float) glfwGetTime();
 
   render_stars();
@@ -835,6 +841,7 @@ void update_uniform_locations() {
   simple_program_locations.location_color_vector = glGetUniformLocation(simple_program, "Color");
   simple_program_locations.location_light_vector = glGetUniformLocation(simple_program, "LightPosition");
   simple_program_locations.location_emits_light_bool = glGetUniformLocation(simple_program, "EmitsLight");
+  simple_program_locations.location_no_cell_border_bool = glGetUniformLocation(simple_program, "NoCellBorder");
   simple_program_locations.location_shininess_float = glGetUniformLocation(simple_program, "Shininess");
   simple_program_locations.location_ambient_float = glGetUniformLocation(simple_program, "Ambient");
   simple_program_locations.location_specular_float = glGetUniformLocation(simple_program, "Specular");
@@ -903,42 +910,27 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   glUseProgram(simple_program);
   if (key == GLFW_KEY_1 && action == GLFW_PRESS)
   { // phong shading
-    cell_shading = 0.0f;
+    cell_shading = false;
     glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
   }
   else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
   { // cell shading
-    cell_shading = 1.0f;
+    cell_shading = true;
     glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
   }
   else if (key == GLFW_KEY_3 && action == GLFW_PRESS)
   { // diffuse light
-    if (diffuse == 1.0f) {
-      diffuse = 0.0f;
-    } else
-    {
-      diffuse = 1.0f;
-    }
+    diffuse = !diffuse;
     glUniform1f(simple_program_locations.location_diffuse_float, diffuse);
   }
   else if (key == GLFW_KEY_4 && action == GLFW_PRESS)
   { // ambient light
-    if (ambient == 1.0f) {
-      ambient = 0.0f;
-    } else
-    {
-      ambient = 1.0f;
-    }
+    ambient = !ambient;
     glUniform1f(simple_program_locations.location_ambient_float, ambient);
   }
   else if (key == GLFW_KEY_5 && action == GLFW_PRESS)
   { // specular light
-    if (specular == 1.0f) {
-      specular = 0.0f;
-    } else
-    {
-      specular = 1.0f;
-    }
+    specular = !specular;
     glUniform1f(simple_program_locations.location_specular_float, specular);
   }
 }
@@ -951,19 +943,19 @@ void show_fps() {
     std::string title{"OpenGL Framework - "};
     title += std::to_string(frames_per_second) + " fps";
 
-    if (cell_shading == 1.0f)
+    if (cell_shading)
     {
       title += " - Cell Shading";
     }
-    if (ambient == 1.0f)
+    if (ambient)
     {
       title += " - Ambient Light";
     }
-    if (specular == 1.0f)
+    if (specular)
     {
       title += " - Specular Light";
     }
-    if (diffuse == 1.0f)
+    if (diffuse)
     {
       title += " - Diffuse Light";
     }

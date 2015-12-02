@@ -11,14 +11,7 @@ uniform mat4 ModelMatrix;
 uniform mat4 ViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
-uniform vec3 Color;
 uniform vec3 LightPosition; // world coordinates
-uniform int EmitsLight;
-uniform float Shininess;
-uniform float Ambient;
-uniform float Specular;
-uniform float Diffuse;
-uniform float CellShading;
 
 out vec4 pass_Normal;
 out vec4 pass_LightDirection;

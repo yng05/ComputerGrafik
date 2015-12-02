@@ -5,12 +5,13 @@ uniform sampler2D NormalTex;
 
 uniform vec3 Color;
 uniform vec3 LightPosition; // world coordinates
-uniform int EmitsLight;
+uniform bool EmitsLight;
 uniform float Shininess;
-uniform float Ambient;
-uniform float Specular;
-uniform float Diffuse;
-uniform float CellShading;
+uniform bool Ambient;
+uniform bool Specular;
+uniform bool Diffuse;
+uniform bool CellShading;
+uniform bool NoCellBorder;
 
 in vec4 pass_Normal;
 in vec4 pass_LightDirection;
@@ -25,15 +26,20 @@ void main(void)
 {
     vec4 textureColor = texture(ColorTex, pass_TexCoord);
 
-    vec3 detailNormal = texture(NormalTex, pass_TexCoord).rgb;
-    detailNormal = 2.0f * (detailNormal - vec3(0.5f));
+    vec4 normal;
 
-    vec4 normal = vec4(normalize(pass_TangentMatrix * detailNormal), 0.0f);
+    if (!EmitsLight) 
+    {
+        vec3 detailNormal = texture(NormalTex, pass_TexCoord).rgb;
+        detailNormal = 2.0f * (detailNormal - vec3(0.5f));
 
-    // normal = pass_Normal;
+        normal = vec4(normalize(pass_TangentMatrix * detailNormal), 0.0f);
+    } else {
+        normal = pass_Normal;
+    }
 
     float diffuse;
-    if (EmitsLight == 1.0f)
+    if (EmitsLight)
     {
         diffuse = 1.0f;
     }
@@ -43,7 +49,7 @@ void main(void)
     }
 
     float specular;
-    if (EmitsLight == 1.0f) {
+    if (EmitsLight) {
         specular = 0.0f;
     }
     else
@@ -54,19 +60,19 @@ void main(void)
     }
 
     vec3 diffuseLight = vec3(0.0f, 0.0f, 0.0f);
-    if (Diffuse == 1.0f)
+    if (Diffuse)
     {
         diffuseLight = diffuse * textureColor.rgb;
     }
 
     vec3 specularLight = vec3(0.0f, 0.0f, 0.0f);
-    if (Specular == 1.0f)
+    if (Specular)
     {
         specularLight = 0.3f * specular * vec3(1.0f);
     }
 
     vec3 ambientLight = vec3(0.0f, 0.0f, 0.0f);
-    if (Ambient == 1.0f)
+    if (Ambient)
     {
         ambientLight = 0.1f * textureColor.rgb;
     }
@@ -74,15 +80,15 @@ void main(void)
     vec3 totalLight = ambientLight + diffuseLight + specularLight;
 
     // use cell shading
-    if (CellShading == 1.0f) {
+    if (CellShading) {
         float l = length(totalLight);
         l = ceil(5.0f * pow(l, 0.5f)) / 5.0f;
         totalLight = normalize(totalLight) * l;
 
         float toonThreshold = dot(normal.xyz, pass_EyeDirection.xyz);
-        if (toonThreshold > 0.0f && toonThreshold < 0.4f)
+        if (toonThreshold > 0.0f && toonThreshold < 0.5f)
         {
-            totalLight = vec3(1.0f, 0.0f, 0.0f);
+            totalLight = float(NoCellBorder) * totalLight + (1.0f-float(NoCellBorder)) * vec3(0.0f, 0.0f, 0.0f);
         }
     }
 
