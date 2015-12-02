@@ -6,3 +6,4 @@ install
 cmake_out
 .DS_Store
 .idea
+resources/textures/*
