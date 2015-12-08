@@ -49,6 +49,7 @@ unsigned frames_per_second = 0;
 GLuint simple_program = 0;
 GLuint starfield_program = 0;
 GLuint orbit_line_program = 0;
+GLuint screen_quad_program = 0;
 
 // random number generator
 std::default_random_engine prng;
@@ -70,6 +71,11 @@ bool diffuse = true;
 // use cell shading
 bool cell_shading = false;
 
+bool vertical_screen_flip = false;
+bool horizontal_screen_flip = false;
+bool greyscaling_screen = false;
+bool gaussian_smooth_screen = false;
+
 // holds gpu representation of model
 struct model_object {
   GLuint vertex_AO = 0;
@@ -90,7 +96,18 @@ struct texture_object {
   GLuint obj_ptr = 0;
   texture tex;
 };
+
 std::vector<texture_object> planet_textures;
+
+struct framebuffer_texture_object {
+  GLenum context = GL_TEXTURE0;
+  GLenum target = GL_TEXTURE_2D;
+  GLuint obj_ptr = 0;
+};
+
+framebuffer_texture_object screen_quad_texture;
+GLuint rb_handle;
+GLuint fbo_handle;
 
 struct point_cloud_object {
   GLuint vertex_AO = 0;
@@ -104,6 +121,13 @@ struct line_object {
   GLuint element_BO = 0;
 };
 line_object orbit_line_object;
+
+struct quad_object {
+  GLuint vertex_AO = 0;
+  GLuint vertex_BO = 0;
+  GLuint element_BO = 0;
+};
+quad_object screen_quad_object;
 
 // holds the structure of the solar system
 struct orb {
@@ -173,6 +197,17 @@ struct orbit_line_program_location_struct
   GLint location_projection_matrix = -1;
 } orbit_line_program_locations;
 
+struct screen_quad_program_location_struct
+{
+  GLint location_projection_matrix = -1;
+  GLint location_color_tex = -1;
+  GLint location_resolution = -1;
+  GLint location_greyscale_active = -1;
+  GLint location_vertical_flip_active = -1;
+  GLint location_horizontal_flip_active = -1;
+  GLint location_gaussian_smooth_active = -1;
+} screen_quad_program_locations;
+
 // path to the resource folders
 std::string resource_path{};
 
@@ -186,11 +221,69 @@ void update_shader_programs();
 void update_camera_position(GLFWwindow* window, int width, int height);
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+void init_render_buffer(GLsizei width, GLsizei height);
+void init_frame_buffers(GLsizei width, GLsizei height);
+
 void initialize_solar_system();
 void initialize_geometry();
 void initialize_planet_textures();
+void initialize_screen_quad_geometry();
+
 void show_fps();
 void render();
+
+
+
+void init_render_buffer (GLsizei width, GLsizei height)
+{
+  glGenRenderbuffers(1, &rb_handle);
+  glBindRenderbuffer(GL_RENDERBUFFER, rb_handle);
+  glRenderbufferStorage(GL_RENDERBUFFER,
+    GL_DEPTH_COMPONENT24,
+    width,
+    height
+  );
+
+}
+
+void init_frame_buffers (GLsizei width, GLsizei height)
+{
+
+  glGenTextures(1, &screen_quad_texture.obj_ptr);
+  glBindTexture(GL_TEXTURE_2D, screen_quad_texture.obj_ptr);
+
+  // set texture sampling parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GLint(GL_LINEAR));
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GLint(GL_LINEAR));
+  glTexImage2D(GL_TEXTURE_2D, 0, GLint(GL_RGBA8), width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
+  glGenFramebuffers(1, &fbo_handle);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo_handle);
+
+  glFramebufferTexture(
+    GL_FRAMEBUFFER, 
+    GL_COLOR_ATTACHMENT0,        // GL_DEPTH_ATTACHMENT
+    screen_quad_texture.obj_ptr,
+    0
+  );
+
+  glFramebufferRenderbuffer(
+    GL_FRAMEBUFFER, 
+    GL_DEPTH_ATTACHMENT, 
+    GL_RENDERBUFFER_EXT, 
+    rb_handle
+  );
+
+  GLenum draw_buffers[1] = {GL_COLOR_ATTACHMENT0};
+  glDrawBuffers(1, draw_buffers);
+
+  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  if (status != GL_FRAMEBUFFER_COMPLETE) {
+    throw std::runtime_error("oh no! the framebuffer is dead!");
+  }
+
+}
 
 // helper
 glm::vec3 from_spherical(glm::vec3 const& c, glm::vec3 const& origin)
@@ -263,8 +356,6 @@ int main(int argc, char* argv[]) {
     resource_path += "/../../resources/";
   }
 
-
-
   // do before framebuffer_resize call as it requires the projection uniform location
   // throw exception if shader compilation was unsuccessfull
   update_shader_programs();
@@ -272,6 +363,9 @@ int main(int argc, char* argv[]) {
   // initialize projection and view matrices
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
+
+
+
   update_view(window, width, height);
   update_camera();
 
@@ -328,7 +422,6 @@ void initialize_solar_system () {
   orb* pluto =    new orb(18.0f, 0.1f, 1.0f, 0.3f,  sun,  glm::vec3(0.5f, 0.5f, 0.8f), false, texture_loader::file(resource_path + "textures/plutomap1k.png"), normal_texture, false);
 
   orb* moon = new orb(1.0f, 0.1f, 4.0f, 0.0f, earth, glm::vec3(0.5f, 0.5f, 0.5f), false, texture_loader::file(resource_path + "textures/moonmap1k.png"), normal_texture, false);
-
 
   orb* universe = new orb(0.0f,  500.0f, 0.0f, 0.0f,  NULL, glm::vec3(1.0f, 1.0f, 0.0f), true, texture_loader::file(resource_path + "textures/galaxy.png"), normal_texture, true);
 
@@ -483,6 +576,59 @@ std::vector<float> generate_random_starfield (int num_stars)
   return data;
 }
 
+void initialize_screen_quad_geometry() {
+  
+
+  std::vector<GLfloat> vertices {
+    -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // v1
+    1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // v2
+    
+    -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,  // v4
+    1.0f, 1.0f, 0.0f, 1.0f, 1.0f   // v3
+  };
+
+  std::vector<GLuint> indices {
+    0, 1, 2, // t1
+    0, 2, 3  // t2
+  };
+
+  auto num_bytes = 5 * sizeof(GLfloat);
+
+  // generate vertex array object
+  glGenVertexArrays(1, &screen_quad_object.vertex_AO);
+  // bind the array for attaching buffers
+  glBindVertexArray(screen_quad_object.vertex_AO);
+
+  // generate generic buffer
+  glGenBuffers(1, &screen_quad_object.vertex_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ARRAY_BUFFER, screen_quad_object.vertex_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(GLsizei(sizeof(float) * vertices.size())), vertices.data(), GL_STATIC_DRAW);
+
+  // activate first attribute on gpu
+  glEnableVertexAttribArray(0);
+  // first attribute is 3 floats with no offset & stride
+  uintptr_t offset0 = 0 * sizeof(GLfloat);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, GLsizei(num_bytes), (const GLvoid*) offset0);
+
+    // activate third attribute on gpu
+  glEnableVertexAttribArray(1);
+  // second attribute is 2 floats with no offset & stride
+  uintptr_t offset1 = 3 * sizeof(GLfloat);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, GLsizei(num_bytes), (const GLvoid*) offset1);
+
+  std::cout << "I am initialized!" << std::endl;
+
+  // // // generate generic buffer
+  // glGenBuffers(1, &screen_quad_object.element_BO);
+  // // bind this as an vertex array buffer containing all attributes
+  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, screen_quad_object.element_BO);
+  // // configure currently bound array buffer
+  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLsizeiptr(GLsizei(sizeof(GLuint) * indices.size())), indices.data(), GL_STATIC_DRAW);
+
+}
+
 void initialize_starfield_geometry ()
 {
   auto data = generate_random_starfield(num_stars);
@@ -504,6 +650,7 @@ void initialize_starfield_geometry ()
 
   // first attribute is 3 floats with no offset & stride
   glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, GL_FALSE, planet_model.vertex_bytes, planet_model.offsets[model::POSITION]);
+
 }
 
 std::pair<std::vector<float>, std::vector<int>> generate_orbit_line_data (int orbit_line_resolution)
@@ -578,6 +725,7 @@ void initialize_geometry() {
   initialize_planet_geometry();
   initialize_starfield_geometry();
   initialize_orbit_line_geometry();
+  initialize_screen_quad_geometry();
 }
 
 ///////////////////////////// render functions ////////////////////////////////
@@ -721,16 +869,48 @@ void render_orbit_lines (float t)
   }
 }
 
+
+void render_screen_quad () {
+  glUseProgram(screen_quad_program);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, screen_quad_texture.obj_ptr);
+  glUniform1i(screen_quad_program_locations.location_color_tex, 0);
+
+  glBindVertexArray(screen_quad_object.vertex_AO);
+  utils::validate_program(screen_quad_program);
+  // glDrawElements(GL_TRIANGLES, GLsizei(6), GL_UNSIGNED_INT, NULL);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
 // render model
 void render() {
+
+  
 
   float factor = 0.1f;
   float t = factor * (float) glfwGetTime();
 
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo_handle);
+
+  // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  glClearColor(0.0, 0.0, 0.0, 0.0);
+  glClearDepth(1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
   render_stars();
   render_planets(t);
   render_orbit_lines(t);
+  
+  
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+  glClearColor(0.0, 0.0, 0.0, 0.0);
+  glClearDepth(1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  render_screen_quad();
 
 }
 
@@ -740,6 +920,9 @@ void render() {
 void update_view(GLFWwindow* window, int width, int height) {
   // resize framebuffer
   glViewport(0, 0, width, height);
+
+  init_render_buffer(width, height);
+  init_frame_buffers(width, height);
 
   float aspect = float(width) / float(height);
   float fov_y = camera_fov;
@@ -760,6 +943,10 @@ void update_view(GLFWwindow* window, int width, int height) {
 
   glUseProgram(orbit_line_program);
   glUniformMatrix4fv(orbit_line_program_locations.location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
+
+  glUseProgram(screen_quad_program);
+  glUniformMatrix4fv(screen_quad_program_locations.location_projection_matrix, 1, GL_FALSE, glm::value_ptr(camera_projection));
+  glUniform2f(screen_quad_program_locations.location_resolution, GLfloat(width), GLfloat(height));
 }
 
 // update camera transformation
@@ -792,7 +979,8 @@ void update_shader_programs() {
   std::vector<std::pair<std::pair<std::string, std::string>, GLuint*>> shaders {
     { {"shaders/simple.vert",     "shaders/simple.frag"},     &simple_program },
     { {"shaders/pointcloud.vert", "shaders/pointcloud.frag"}, &starfield_program },
-    { {"shaders/lines.vert",      "shaders/lines.frag"},      &orbit_line_program }
+    { {"shaders/lines.vert",      "shaders/lines.frag"},      &orbit_line_program },
+    { {"shaders/quad.vert",      "shaders/quad.frag"},      &screen_quad_program }
   };
 
   try {  
@@ -860,6 +1048,15 @@ void update_uniform_locations() {
   orbit_line_program_locations.location_model_matrix = glGetUniformLocation(orbit_line_program, "ModelMatrix");
   orbit_line_program_locations.location_view_matrix = glGetUniformLocation(orbit_line_program, "ViewMatrix");
   orbit_line_program_locations.location_projection_matrix = glGetUniformLocation(orbit_line_program, "ProjectionMatrix");
+
+  glUseProgram(screen_quad_program);
+  screen_quad_program_locations.location_projection_matrix = glGetUniformLocation(screen_quad_program, "ProjectionMatrix");
+  screen_quad_program_locations.location_color_tex = glGetUniformLocation(screen_quad_program, "ColorTex");
+  screen_quad_program_locations.location_resolution = glGetUniformLocation(screen_quad_program, "Resolution");
+  screen_quad_program_locations.location_vertical_flip_active = glGetUniformLocation(screen_quad_program, "FlipVerticalActive");
+  screen_quad_program_locations.location_horizontal_flip_active = glGetUniformLocation(screen_quad_program, "FlipHorizontalActive");
+  screen_quad_program_locations.location_greyscale_active = glGetUniformLocation(screen_quad_program, "GreyscaleActive");
+  screen_quad_program_locations.location_gaussian_smooth_active = glGetUniformLocation(screen_quad_program, "GaussianSmoothActive");
 }
 
 void update_camera_position (GLFWwindow* window, int width, int height) {
@@ -907,31 +1104,62 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   }
 
   // light
-  glUseProgram(simple_program);
+  
   if (key == GLFW_KEY_1 && action == GLFW_PRESS)
   { // phong shading
     cell_shading = false;
+    glUseProgram(simple_program);
     glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
   }
   else if (key == GLFW_KEY_2 && action == GLFW_PRESS)
   { // cell shading
     cell_shading = true;
+    glUseProgram(simple_program);
     glUniform1f(simple_program_locations.location_cell_shading_float, cell_shading);
   }
   else if (key == GLFW_KEY_3 && action == GLFW_PRESS)
   { // diffuse light
     diffuse = !diffuse;
+    glUseProgram(simple_program);
     glUniform1f(simple_program_locations.location_diffuse_float, diffuse);
   }
   else if (key == GLFW_KEY_4 && action == GLFW_PRESS)
   { // ambient light
     ambient = !ambient;
+    glUseProgram(simple_program);
     glUniform1f(simple_program_locations.location_ambient_float, ambient);
   }
   else if (key == GLFW_KEY_5 && action == GLFW_PRESS)
   { // specular light
     specular = !specular;
+    glUseProgram(simple_program);
     glUniform1f(simple_program_locations.location_specular_float, specular);
+  }
+
+  // postprocessing effects
+  if (key == GLFW_KEY_7 && action == GLFW_PRESS)
+  { // greyscale active
+    greyscaling_screen = !greyscaling_screen;
+    glUseProgram(screen_quad_program);
+    glUniform1i(screen_quad_program_locations.location_greyscale_active, greyscaling_screen);
+  }
+  else if (key == GLFW_KEY_8 && action == GLFW_PRESS)
+  { // horizontal flip
+    horizontal_screen_flip = !horizontal_screen_flip;
+    glUseProgram(screen_quad_program);
+    glUniform1i(screen_quad_program_locations.location_horizontal_flip_active, horizontal_screen_flip);
+  }
+  else if (key == GLFW_KEY_9 && action == GLFW_PRESS)
+  { // vertical flip
+    vertical_screen_flip = !vertical_screen_flip;
+    glUseProgram(screen_quad_program);
+    glUniform1f(screen_quad_program_locations.location_vertical_flip_active, vertical_screen_flip);
+  }
+  else if (key == GLFW_KEY_0 && action == GLFW_PRESS)
+  { // gaussian smooth
+    gaussian_smooth_screen = !gaussian_smooth_screen;
+    glUseProgram(screen_quad_program);
+    glUniform1f(screen_quad_program_locations.location_gaussian_smooth_active, gaussian_smooth_screen);
   }
 }
 
