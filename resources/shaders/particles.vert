@@ -21,6 +21,8 @@ uniform float Time;
 out vec4 color;
 out vec2 texCoord;
 out float transparency;
+out vec4 position;
+out vec4 lightPosition;
 
 float calc_time(float global_time)
 {
@@ -78,4 +80,7 @@ void main(void)
 
     p = ProjectionMatrix * p;
     gl_Position =  p;
+
+    position = ModelMatrix * p;
+    lightPosition = ModelMatrix * vec4(vec3(0), 1);
 }

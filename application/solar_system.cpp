@@ -827,11 +827,11 @@ void initialize_particles ()
   );
 
   comet_particle_manager = std::make_shared<ParticleManager>(
-    1000, std::make_shared<PlaneGenerator>(),
+    10000, std::make_shared<PlaneGenerator>(),
 
     1.0f,  // lifetime
-    3.9f,   // transparency
-    0.1f,  // size
+    10.9f,   // transparency
+    0.01f,  // size
     10.0f,   // speed
 
     glm::vec3(1.0f, 0.8f, 0.6f)

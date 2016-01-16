@@ -3,6 +3,9 @@
 in vec2 texCoord;
 in vec4 color;
 in float transparency;
+in vec4 position;
+in vec4 lightPosition;
+
 out vec4 out_Color;
 
 void main(void)
@@ -18,5 +21,6 @@ void main(void)
     {
         t = 0;
     }
-    out_Color = color * vec4(vec3(1), t * transparency);
+
+    out_Color =  color * vec4(vec3(1), t * transparency);
 }
